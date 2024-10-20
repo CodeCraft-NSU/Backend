@@ -6,11 +6,13 @@ from pydantic import BaseModel
 router = APIRouter()
 
 class SignUp_Payload(BaseModel):
+    is_student: bool
+    name: str
+    univ_id: int
+    email: str
     id: str
     pw: str
-    email: str
-    name: str
-    student_id: str
+    department: int
 
 @router.get("/acc_signup")
 async def api_acc_signup_get():
