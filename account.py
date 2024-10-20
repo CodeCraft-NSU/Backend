@@ -1,3 +1,4 @@
+# 계정/세션 관련 기능
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
