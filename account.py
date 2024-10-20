@@ -44,6 +44,7 @@ async def api_acc_signin_post(payload: Signin_Payload):
     token = "Ack2jb028173920!"
 
     if payload.id == valid_id and payload.pw == valid_pw:
-        return {"login": "True", "Token": token}
+        return {"login": "True", 
+                "Token": token}
     else:
         return JSONResponse(status_code=401, content={"login": "failed"})
