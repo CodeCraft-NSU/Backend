@@ -50,13 +50,21 @@ async def api_prj_load_get(payload: load_project):
     예시로, 가상의 함수 fetch_project_info()를 사용한다고 가정
     project_info = fetch_project_info(payload.univ_id) 학번을 기준으로 프로젝트 정보 조회
     """
-    if project_info:  # 프로젝트 정보가 존재할 경우
+    if project_info:
+        pid = project_info['pid']
         pname = project_info['pname']
+        pdetails = project_info['pdetails']
         psize = project_info['psize']
         pperiod = project_info['pperiod']
+        pmm = project_info['pmm']
     else:
         raise HTTPException(status_code=404, detail="Project not found")  # 프로젝트가 없는 경우 예외 처리
 
-    return {"pname": pname, 
-            "psize": psize, 
-            "pperiod": pperiod} # P021에 프로젝트 목표?
+    return {
+        "pid": pid,
+        "pname": pname,
+        "pdetails": pdetails,
+        "psize": psize,
+        "pperiod": pperiod,
+        "pmm": pmm
+    } # P021에 프로젝트 목표?
