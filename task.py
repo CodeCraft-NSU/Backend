@@ -6,8 +6,21 @@ import mysql_connection # MySQL 연결 기능 수행
 
 router = APIRouter()
 
-class task_load(BaseModel): #업무관리 로드 클래스
+class task_load(BaseModel): #업무 로드 클래스
     univ_id: int # 학번으로 자신이 소유한 업무를 불러옴
+
+class task_add(BaseModel): #업무 추가 클래스
+    tname: str
+    tperson: str
+    tstart: str
+    tend: str
+
+class task_edit(BaseModel): #업무 수정 클래스
+    tname: str
+    tperson: str
+    tstart: str
+    tend: str
+    tfinish: bool
 
 @router.get("/task/load")
 async def api_tsk_load_get(payload: task_load):
@@ -42,3 +55,39 @@ async def api_tsk_load_get(payload: task_load):
         })
     
     return tasks  # 리스트로 반환
+
+@router.post("/task/add")
+async def api_tsk_add_post(payload: task_add):
+    db_connect()  # DB에 접속
+    
+    # 예시로, 가상의 함수 add_task_info()를 사용한다고 가정
+    task_id = add_task_info(
+        tname=payload.tname,
+        tperson=payload.tperson,
+        tstart=payload.tstart,
+        tend=payload.tend
+    )
+    
+    if task_id is None:
+        raise HTTPException(status_code=400, detail="Task addition failed")
+    
+    return JSONResponse(content={"message": "Task added successfully", "task_id": task_id})
+
+
+@router.put("/task/edit")
+async def api_tsk_edit_post(payload: task_edit):
+    db_connect()  # DB에 접속
+    
+    # 예시로, 가상의 함수 update_task_info()를 사용한다고 가정
+    updated = update_task_info(
+        tname=payload.tname,
+        tperson=payload.tperson,
+        tstart=payload.tstart,
+        tend=payload.tend,
+        tfinish=payload.tfinish
+    )
+    
+    if not updated:
+        raise HTTPException(status_code=400, detail="Task update failed")
+    
+    return JSONResponse(content={"message": "Task updated successfully"})
