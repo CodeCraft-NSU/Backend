@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from account import router as account_router
 from project import router as project_router
+import mysql_connection
 
 app = FastAPI()
 

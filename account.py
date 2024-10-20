@@ -9,6 +9,7 @@ class SignUp_Payload(BaseModel):
     pw: str
     email: str
     name: str
+    student_id: str
 
 @router.get("/acc_signup")
 async def api_acc_signup_get():
