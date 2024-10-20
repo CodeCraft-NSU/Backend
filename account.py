@@ -56,4 +56,4 @@ async def api_acc_signin_post(payload: Signin_Payload):
         else:
             return JSONResponse(status_code=401, content={"login": "failed"})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail={"login": "failed"})

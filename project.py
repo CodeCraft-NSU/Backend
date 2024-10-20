@@ -1,5 +1,7 @@
 # 프로젝트 관련 기능
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import mysql_connection # MySQL 연결 기능 수행
 
 router = APIRouter()
@@ -43,7 +45,7 @@ async def api_prj_edit_post(payload: project_edit):
     return {"Result": edit_result}
 
 @router.get("/project/load")
-async def api_prj_load_get(payload: load_project):
+async def api_prj_load_get(payload: project_load):
     db_connect()  # DB에 접속
     """
     DB에서 데이터를 가져오는 쿼리 실행
