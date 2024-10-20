@@ -14,6 +14,10 @@ class SignUp_Payload(BaseModel):
     pw: str
     department: int
 
+class Signin_Payload(BaseModel):
+    id: str
+    pw: str
+
 @router.get("/acc_signup")
 async def api_acc_signup_get():
     return {"Message": "Please use post method, not get method."}
@@ -24,10 +28,6 @@ async def api_acc_signup_post(payload: SignUp_Payload):
     필요시 payload의 유효성 검토..
     """
     return payload
-
-class Signin_Payload(BaseModel):
-    id: str
-    pw: str
 
 @router.get("/acc_signin")
 async def api_acc_signin_get():

@@ -3,7 +3,6 @@ from account import router as account_router
 from project import router as project_router
 from task import router as task_router
 from output import router as output_router
-import mysql_connection
 
 app = FastAPI()
 
