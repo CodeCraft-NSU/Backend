@@ -68,8 +68,9 @@ async def api_prj_load_get(payload: project_load):
         pperiod = project_info['pperiod']
         pmm = project_info['pmm']
     else:
-        raise HTTPException(status_code=404, detail="Project not found")  # 프로젝트가 없는 경우 예외 처리
-
+        raise HTTPException(status_code=404, detail={"RESULT_CODE": 404,
+                                                     "RESULT_MSG": "Not Found",
+                                                     "PAYLOADS": {}})
     return {"RESULT_CODE": 200,
             "RESULT_MSG": "Success",
             "PAYLOADS": {
