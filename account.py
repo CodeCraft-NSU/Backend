@@ -19,11 +19,11 @@ class Signin_Payload(BaseModel):
     id: str
     pw: str
 
-@router.get("/acc_signup")
+@router.get("/acc/signup")
 async def api_acc_signup_get():
     return {"Message": "Please use POST method for signup."}
 
-@router.post("/acc_signup")
+@router.post("/acc/signup")
 async def api_acc_signup_post(payload: SignUp_Payload):
     """
     DB에 사용자 정보를 삽입하는 쿼리 실행
@@ -36,11 +36,11 @@ async def api_acc_signup_post(payload: SignUp_Payload):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/acc_signin")
+@router.get("/acc/signin")
 async def api_acc_signin_get():
     return {"Message": "Please use POST method for signin."}
 
-@router.post("/acc_signin")
+@router.post("/acc/signin")
 async def api_acc_signin_post(payload: Signin_Payload):
     """
     MySQL과 연동하여 계정 확인 후 로그인 성공 여부 확인
