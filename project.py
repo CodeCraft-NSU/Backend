@@ -14,7 +14,7 @@ class project_init(BaseModel): # 프로젝트 생성 클래스
     pmm: int # 프로젝트 관리 방법론; project management methodologies
 
 class project_edit(BaseModel): # 프로젝트 생성 클래스
-    pid: str # 프로젝트의 고유번호
+    pid: int # 프로젝트의 고유번호
     pname: str # 프로젝트 이름
     pdetails: str # 프로젝트 내용
     psize: int # 프로젝트 개발 인원
@@ -32,7 +32,11 @@ async def api_prj_init_post(payload: project_init):
     init_result = init_project(payload)
     """
     init_result = True # 테스트 코드
-    return {"Result": init_result}
+    return {"RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": {
+                            "init_result": init_result
+                        }}
 
 @router.post("/project/edit")
 async def api_prj_edit_post(payload: project_edit):
@@ -42,7 +46,11 @@ async def api_prj_edit_post(payload: project_edit):
     edit_result = edit_project(payload)
     """
     edit_result = True
-    return {"Result": edit_result}
+    return {"RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": {
+                            "edit_result": edit_result
+                        }}
 
 @router.get("/project/load")
 async def api_prj_load_get(payload: project_load):
@@ -60,13 +68,16 @@ async def api_prj_load_get(payload: project_load):
         pperiod = project_info['pperiod']
         pmm = project_info['pmm']
     else:
-        raise HTTPException(status_code=404, detail="Project not found")  # 프로젝트가 없는 경우 예외 처리
-
-    return {
-        "pid": pid,
-        "pname": pname,
-        "pdetails": pdetails,
-        "psize": psize,
-        "pperiod": pperiod,
-        "pmm": pmm
-    } # P021에 프로젝트 목표?
+        raise HTTPException(status_code=404, detail={"RESULT_CODE": 404,
+                                                     "RESULT_MSG": "Not Found",
+                                                     "PAYLOADS": {}})
+    return {"RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": {
+                            "pid": pid,
+                            "pname": pname,
+                            "pdetails": pdetails,
+                            "psize": psize,
+                            "pperiod": pperiod,
+                            "pmm": pmm
+                        }} # P021에 프로젝트 목표?
