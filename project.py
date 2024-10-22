@@ -14,7 +14,7 @@ class project_init(BaseModel): # 프로젝트 생성 클래스
     pmm: int # 프로젝트 관리 방법론; project management methodologies
 
 class project_edit(BaseModel): # 프로젝트 생성 클래스
-    pid: str # 프로젝트의 고유번호
+    pid: int # 프로젝트의 고유번호
     pname: str # 프로젝트 이름
     pdetails: str # 프로젝트 내용
     psize: int # 프로젝트 개발 인원

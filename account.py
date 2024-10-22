@@ -19,10 +19,6 @@ class Signin_Payload(BaseModel):
     id: str
     pw: str
 
-@router.get("/acc/signup")
-async def api_acc_signup_get():
-    return {"Message": "Please use POST method for signup."}
-
 @router.post("/acc/signup")
 async def api_acc_signup_post(payload: SignUp_Payload):
     """
@@ -32,13 +28,9 @@ async def api_acc_signup_post(payload: SignUp_Payload):
     try:
         # 예시: 사용자 정보 데이터베이스에 삽입
         insert_result = insert_user(payload)  # insert_user 함수는 payload의 정보를 DB에 삽입
-        return {"Result": insert_result}
+        return {"PAYLOADS": insert_result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/acc/signin")
-async def api_acc_signin_get():
-    return {"Message": "Please use POST method for signin."}
 
 @router.post("/acc/signin")
 async def api_acc_signin_post(payload: Signin_Payload):
@@ -51,9 +43,17 @@ async def api_acc_signin_post(payload: Signin_Payload):
         is_valid_user = validate_user(payload.id, payload.pw)  # validate_user 함수는 ID와 PW를 체크
         
         if is_valid_user:
-            token = generate_token(payload.id)  # 가상의 토큰 생성 함수
-            return {"login": "True", "Token": token}
+            Token = generate_token(payload.id)  # 'Token' 변수 생성
+            return {"RESULT_CODE": 200,
+                    "RESULT_MSG": "Success",
+                    "PAYLOADS": {
+                                    "Token": Token
+                                }}
         else:
-            return JSONResponse(status_code=401, content={"login": "failed"})
+            return JSONResponse(status_code=401, content={"RESULT_CODE": 401,
+                                                          "RESULT_MSG": "Unauthorized",
+                                                          "PAYLOADS": {}})
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"login": "failed"})
+        raise HTTPException(status_code=500, detail={"RESULT_CODE": 500,
+                                                     "RESULT_MSG": "Internal Server Error",
+                                                     "PAYLOADS": {}})
