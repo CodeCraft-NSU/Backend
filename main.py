@@ -1,6 +1,6 @@
 """                                                          
-   CodeCraft PMS Project                             
-                                                                              
+   CodeCraft PMS Backend Project
+
    파일명   : main.py                                                          
    생성자   : 김창환                                
                                                                               

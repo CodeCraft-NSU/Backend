@@ -1,5 +1,5 @@
 """                                                          
-   CodeCraft PMS Project                             
+   CodeCraft PMS Backend Project                             
                                                                               
    파일명   : account.py                                                          
    생성자   : 김창환                                

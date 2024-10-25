@@ -1,5 +1,5 @@
 """                                                          
-   CodeCraft PMS Project                             
+   CodeCraft PMS Backend Project                             
                                                                               
    파일명   : mysql_connection.py                                                          
    생성자   : 김창환                                
