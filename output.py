@@ -1,4 +1,15 @@
-# 산출물 관련 기능
+"""                                                          
+   CodeCraft PMS Project                             
+                                                                              
+   파일명   : output.py                                                          
+   생성자   : 김창환                                
+                                                                              
+   생성일   : 2024/10/20
+   업데이트 : 2024/10/20
+                                                                             
+   설명     : 산출물의 생성, 수정, 조회, 업로드를 위한 API 엔드포인트 정의
+"""
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
