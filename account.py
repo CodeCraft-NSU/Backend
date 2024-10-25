@@ -19,12 +19,29 @@ class Signin_Payload(BaseModel):
     id: str
     pw: str
 
+def generate_token(user_id: str):
+    """
+    알파벳 대소문자, 숫자, 특수문자를 섞어 15자 길이의 랜덤 토큰 생성
+    """
+    # 사용할 문자 목록: 알파벳 대소문자, 숫자, 특수문자
+    characters = string.ascii_letters + string.digits + string.punctuation
+    # 15자리 랜덤 문자열 생성
+    token = ''.join(random.choices(characters, k=15))
+    return token
+
+def check_session(user_token: str):
+    """
+    DB와 통신 후 토큰의 유효성을 체크하는 기능 구현
+    """
+    return {}
+
 @router.post("/acc/signup")
 async def api_acc_signup_post(payload: SignUp_Payload):
     """
     DB에 사용자 정보를 삽입하는 쿼리 실행
     예시로, 가상의 함수 insert_user()를 사용한다고 가정
     """
+    Token = generate_token(payload.id) # Session 토큰 생성
     try:
         # 예시: 사용자 정보 데이터베이스에 삽입
         insert_result = insert_user(payload)  # insert_user 함수는 payload의 정보를 DB에 삽입
