@@ -3,11 +3,11 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import mysql_connection  # MySQL 연결 기능 수행
+import json, random, string
 
 router = APIRouter()
 
 class SignUp_Payload(BaseModel):
-    is_student: bool
     name: str
     univ_id: int
     email: str
@@ -28,9 +28,15 @@ async def api_acc_signup_post(payload: SignUp_Payload):
     try:
         # 예시: 사용자 정보 데이터베이스에 삽입
         insert_result = insert_user(payload)  # insert_user 함수는 payload의 정보를 DB에 삽입
-        return {"PAYLOADS": insert_result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"RESULT_CODE": 200,
+                "RESULT_MSG": "Success",
+                "PAYLOADS": {
+                                "Token": Token
+                            }}
+    except Exception as e: # 오류코드 세분화 구현 필요
+        raise HTTPException(status_code=500, detail={"RESULT_CODE": 500,
+                                                     "RESULT_MSG": "Internal Server Error",
+                                                     "PAYLOADS": {}})
 
 @router.post("/acc/signin")
 async def api_acc_signin_post(payload: Signin_Payload):
