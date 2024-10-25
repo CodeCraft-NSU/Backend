@@ -7,7 +7,7 @@
    생성일   : 2024/10/14                                                       
    업데이트 : 2024/10/20                                                      
                                                                              
-   설명     : fastapi 구현을 위한 main 함수                        
+   설명     : FastAPI 서버 설정 및 계정, 프로젝트, 업무, 산출물 관리 라우터 포함                   
 """
 
 from fastapi import FastAPI
