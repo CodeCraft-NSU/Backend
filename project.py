@@ -35,6 +35,12 @@ class project_edit(BaseModel): # 프로젝트 생성 클래스
 class project_load(BaseModel): #프로젝트 로드 클래스
     univ_id: int # 학번으로 자신이 소유한 프로젝트를 불러옴
 
+def gen_project_uid(): # 프로젝트 고유 ID 생성 함수
+    """
+    5자의 수열을 무작위로 만들되, DB와 통신해서 중복되지 않은 수열인지 먼저 체크 후 return함
+    """
+    return {}
+
 @router.post("/project/init")
 async def api_prj_init_post(payload: project_init):
     """
