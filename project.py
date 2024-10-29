@@ -21,7 +21,7 @@ class project_init(BaseModel): # 프로젝트 생성 클래스
     pname: str # 프로젝트 이름
     pdetails: str # 프로젝트 내용
     psize: int # 프로젝트 개발 인원
-    pperiod: str # 프로젝트 개발 기간
+    pperiod: str # 프로젝트 개발 기간 241012-241130
     pmm: int # 프로젝트 관리 방법론; project management methodologies
 
 class project_edit(BaseModel): # 프로젝트 생성 클래스
@@ -29,7 +29,7 @@ class project_edit(BaseModel): # 프로젝트 생성 클래스
     pname: str # 프로젝트 이름
     pdetails: str # 프로젝트 내용
     psize: int # 프로젝트 개발 인원
-    pperiod: str # 프로젝트 개발 기간
+    pperiod: str # 프로젝트 개발 기간; 241012-241130
     pmm: int # 프로젝트 관리 방법론; project management methodologies
 
 class project_load(BaseModel): #프로젝트 로드 클래스
