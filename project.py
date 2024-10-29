@@ -49,7 +49,7 @@ def gen_project_uid(): # 프로젝트 고유 ID 생성 함수
         else: return True
 
     while True:
-        tmp_uid = random.randint(10000, 50000)
+        tmp_uid = random.randint(10000, 99999)
         if check_uid is False: # 이미 있는 UID 값이라면
             continue # 될 때까지 재시도
         else: break
