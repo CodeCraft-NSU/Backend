@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import mysql_connection # MySQL 연결 기능 수행
+import random # gen_project_uid 함수에서 사용
 
 router = APIRouter()
 
@@ -39,7 +40,20 @@ def gen_project_uid(): # 프로젝트 고유 ID 생성 함수
     """
     5자의 수열을 무작위로 만들되, DB와 통신해서 중복되지 않은 수열인지 먼저 체크 후 return함
     """
-    return {}
+    tmp_uid = 0
+
+    def check_uid(): # DB와 통신해서 UID의 중복을 확인하는 함수
+        session = db_connect()
+        # 개쩌는 통신 기능 구현
+        if result is False: return False
+        else: return True
+
+    while True:
+        tmp_uid = random.randint(10000, 50000)
+        if check_uid is False: # 이미 있는 UID 값이라면
+            continue # 될 때까지 재시도
+        else: break
+    return tmp_uid
 
 @router.post("/project/init")
 async def api_prj_init_post(payload: project_init):
