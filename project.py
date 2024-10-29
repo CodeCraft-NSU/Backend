@@ -74,7 +74,7 @@ async def api_prj_init_post(payload: project_init):
         return {"RESULT_CODE": 500,
                 "RESULT_MSG": "Error",
                 "PAYLOADS": {
-                                "result": "에러 내용을 DB로부터 파싱해서 기입.."
+                                "result": "" # 에러 내용을 DB로부터 파싱해서 기입..
                             }}
 
 @router.post("/project/edit")
