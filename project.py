@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2024/10/25                                                      
+   업데이트 : 2024/10/29                                                      
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -53,7 +53,8 @@ def gen_project_uid(): # 프로젝트 고유 ID 생성 함수
         if check_uid is False: # 이미 있는 UID 값이라면
             continue # 될 때까지 재시도
         else: break
-    return tmp_uid
+
+    return tmp_uid # 최종 uid값 return
 
 @router.post("/project/init")
 async def api_prj_init_post(payload: project_init):
@@ -62,12 +63,19 @@ async def api_prj_init_post(payload: project_init):
     예시로, 가상의 함수 init_project()를 사용한다고 가정
     init_result = init_project(payload)
     """
-    init_result = True # 테스트 코드
-    return {"RESULT_CODE": 200,
-            "RESULT_MSG": "Success",
-            "PAYLOADS": {
-                            "init_result": init_result
-                        }}
+    PUID = gen_project_uid()
+    if init_result is True:
+        return {"RESULT_CODE": 200,
+                "RESULT_MSG": "Success",
+                "PAYLOADS": {
+                                "result": "OK;" + PUID
+                            }}
+    else:
+        return {"RESULT_CODE": 500,
+                "RESULT_MSG": "Error",
+                "PAYLOADS": {
+                                "result": "에러 내용을 DB로부터 파싱해서 기입.."
+                            }}
 
 @router.post("/project/edit")
 async def api_prj_edit_post(payload: project_edit):
@@ -85,7 +93,7 @@ async def api_prj_edit_post(payload: project_edit):
 
 @router.get("/project/load")
 async def api_prj_load_get(payload: project_load):
-    db_connect()  # DB에 접속
+    session = db_connect()  # DB에 접속
     """
     DB에서 데이터를 가져오는 쿼리 실행
     예시로, 가상의 함수 fetch_project_info()를 사용한다고 가정
