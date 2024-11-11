@@ -44,6 +44,9 @@ class SignOut_Payload(BaseModel):
 class DelAcc_Payload(BaseModel):
     id: str
 
+class Usrpm_Payload(BaseModel):
+    token: str
+
 def generate_token():
     """
     알파벳 대소문자, 숫자, 특수문자를 섞어 15자 길이의 랜덤 토큰 생성
@@ -137,6 +140,6 @@ async def api_acc_delacc_post(payload: DelAcc_Payload):
 @router.post("/acc/usrpm")
 async def api_acc_userpm_post(payload: Usrpm_Payload):
     """
-    Token을 기반으로 유저가 소유한 프로젝트 등 정보를 조회함
+    Token을 기반으로 유저가 소유한 프로젝트 등 정보를 조회함; User Permission
     """
     return {}
