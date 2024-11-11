@@ -35,6 +35,9 @@ class Signin_Payload(BaseModel):
 class SignOut_Payload(BaseModel):
     token: str
 
+class DelAcc_Payload(BaseModel):
+    id: str
+
 def generate_token():
     """
     알파벳 대소문자, 숫자, 특수문자를 섞어 15자 길이의 랜덤 토큰 생성
@@ -103,3 +106,17 @@ async def api_acc_signout_post(payload: SignOut_Payload):
     token 값을 payload로 받아 session을 폐기함
     """
     return {}
+
+@router.post("/acc/delacc")
+async def api_acc_delacc_post(payload: DelAcc_Payload):
+    """
+    계정 삭제 기능을 구현함
+    """
+    if account_DB.delete_user(payload.id):
+        return {"RESULT_CODE": 200,
+                "RESULT_MSG": "Success",
+                "PAYLOADS": {}}
+    else:
+        return {"RESULT_CODE": 500,
+                "RESULT_MSG": "Internal Server Error",
+                "PAYLOADS": {}}
