@@ -21,7 +21,7 @@ from task import router as task_router
 from output import router as output_router
 from test import router as test_router # Frontend Axios에서 API 통신 테스트를 위한 라우터
 
-# Database Project와의 연동을 위해 bashrc에 PYTHONPATH 정의 필요
+# Database Project와의 연동을 위해 각 Router에 sys.path에 경로 정의 필요
 
 app = FastAPI()
 

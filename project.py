@@ -13,8 +13,11 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import mysql_connection # MySQL 연결 기능 수행
 import random # gen_project_uid 함수에서 사용
+import sys, os
+
+sys.path.append(os.path.abspath('/data/Database Project')) # Database Project와 연동하기 위해 사용
+import account_DB
 
 router = APIRouter()
 
