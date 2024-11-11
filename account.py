@@ -20,6 +20,12 @@ import account_DB
 
 router = APIRouter()
 
+"""
+전반적으로 오류 처리 세분화가 필요함
+현재 대부분 오류는 500 Internal Server Error로 처리하나, 
+구체적으로 오류 코드를 처리해야 이후 유지보수에 유리할 듯
+"""
+
 class SignUp_Payload(BaseModel):
     name: str
     univ_id: int
@@ -82,7 +88,7 @@ async def api_acc_signin_post(payload: Signin_Payload):
     try:
         # 사용자 유효성 검사
         is_valid_user = account_DB.validate_user(payload.id, payload.pw)  # validate_user 함수는 ID와 PW를 체크
-        
+        # validate_user 함수에 token을 전달해줘야 하지 않을까?
         if is_valid_user:
             Token = generate_token()  # 'Token' 변수 생성
             return {"RESULT_CODE": 200,
@@ -105,12 +111,19 @@ async def api_acc_signout_post(payload: SignOut_Payload):
     로그아웃 기능을 구현함
     token 값을 payload로 받아 session을 폐기함
     """
-    return {}
+    if account_DB.signout_user(payload.token):
+        return {"RESULT_CODE": 200,
+                "RESULT_MSG": "Success",
+                "PAYLOADS": {}}
+    else:
+        return {"RESULT_CODE": 500,
+                "RESULT_MSG": "Internal Server Error",
+                "PAYLOADS": {}}
 
 @router.post("/acc/delacc")
 async def api_acc_delacc_post(payload: DelAcc_Payload):
     """
-    계정 삭제 기능을 구현함
+    계정 삭제 기능을 구현함; Delete Account
     """
     if account_DB.delete_user(payload.id):
         return {"RESULT_CODE": 200,
@@ -120,3 +133,10 @@ async def api_acc_delacc_post(payload: DelAcc_Payload):
         return {"RESULT_CODE": 500,
                 "RESULT_MSG": "Internal Server Error",
                 "PAYLOADS": {}}
+
+@router.post("/acc/usrpm")
+async def api_acc_userpm_post(payload: Usrpm_Payload):
+    """
+    Token을 기반으로 유저가 소유한 프로젝트 등 정보를 조회함
+    """
+    return {}
