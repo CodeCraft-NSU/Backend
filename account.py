@@ -52,21 +52,20 @@ def check_session(user_token: str):
 async def api_acc_signup_post(payload: SignUp_Payload):
     """
     DB에 사용자 정보를 삽입하는 쿼리 실행
-    예시로, 가상의 함수 insert_user()를 사용한다고 가정
+    Database Project의 account_DB에 정의돼있는 insert_user 함수 사용
     """
     Token = generate_token(payload.id) # Session 토큰 생성
-    try:
-        # 예시: 사용자 정보 데이터베이스에 삽입
-        insert_result = insert_user(payload)  # insert_user 함수는 payload의 정보를 DB에 삽입
+    insert_result = insert_user(payload, Token)  # insert_user 함수는 payload의 정보를 DB에 삽입
+    if insert_result is True:
         return {"RESULT_CODE": 200,
                 "RESULT_MSG": "Success",
                 "PAYLOADS": {
                                 "Token": Token
                             }}
-    except Exception as e: # 오류코드 세분화 구현 필요
+    else:
         raise HTTPException(status_code=500, detail={"RESULT_CODE": 500,
-                                                     "RESULT_MSG": "Internal Server Error",
-                                                     "PAYLOADS": {}})
+                                                        "RESULT_MSG": "Internal Server Error",
+                                                        "PAYLOADS": {}})
 
 @router.post("/acc/signin")
 async def api_acc_signin_post(payload: Signin_Payload):
