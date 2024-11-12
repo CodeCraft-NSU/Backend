@@ -40,7 +40,7 @@ class project_load(BaseModel): #프로젝트 로드 클래스
     univ_id: int # 학번으로 자신이 소유한 프로젝트를 불러옴
 
 class project_delete(BaseModel):
-    pid = str
+    pid: str
 
 class project_loaduser(BaseModel):  # 팀원 조회 클래스
     pid: int  # 프로젝트 고유번호
