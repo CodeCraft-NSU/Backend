@@ -42,6 +42,30 @@ class project_load(BaseModel): #프로젝트 로드 클래스
 class project_delete(BaseModel):
     pid = str
 
+class project_loaduser(BaseModel):  # 팀원 조회 클래스
+    pid: int  # 프로젝트 고유번호
+
+class project_adduser(BaseModel):  # 팀원 추가 클래스
+    pid: int  # 프로젝트 고유번호
+    univ_id: int  # 학번
+    role: str  # 팀원 역할
+
+class project_deleteuser(BaseModel):  # 팀원 삭제 클래스
+    pid: int  # 프로젝트 고유번호
+    univ_id: int  # 학번
+
+class project_edituser(BaseModel):  # 팀원 수정 클래스
+    id: int  # 수정할 팀원의 ID
+    name: str  # 수정할 이름
+    email: str  # 수정할 이메일
+    univ_id: int  # 학번
+    pid: int  # 프로젝트 고유번호
+    role: str  # 수정할 역할
+
+class project_checkpm(BaseModel):  # PM 권한 확인 클래스
+    pid: int  # 프로젝트 고유번호
+    univ_id: int  # 학번
+
 def gen_project_uid(): # 프로젝트 고유 ID 생성 함수
     """
     5자의 수열을 무작위로 만들되, DB와 통신해서 중복되지 않은 수열인지 먼저 체크 후 return함
@@ -130,10 +154,31 @@ async def api_prj_load_post(payload: project_load):
         "PAYLOADS": payloads
     }
 
-# fetch_project_user(pid)
 @router.post("/prj/loaduser")
 async def api_prj_loaduser_post(payload: project_loaduser):
-    return {}
+    """
+    프로젝트에 참여 중인 모든 팀원 조회
+    """
+    users = project_DB.fetch_project_user(payload.pid)
+    if users is False:
+        return {
+            "RESULT_CODE": 500,
+            "RESULT_MSG": "Internal Server Error",
+            "PAYLOADS": {}
+        }
+    
+    payloads = [
+        {
+            "univ_id": user["s_no"],
+            "role": user["role"],
+            "permission": user["permission"]
+        } for user in users
+    ]
+    return {
+        "RESULT_CODE": 200,
+        "RESULT_MSG": "Success",
+        "PAYLOADS": payloads
+    }
 
 @router.post("/prj/delete")
 async def api_prj_delete_post(payload: project_delete):
@@ -148,22 +193,79 @@ async def api_prj_delete_post(payload: project_delete):
             "RESULT_MSG": "Internal Server Error",
             "PAYLOADS": {}}
 
-# add_project_user(pid, univ_id, role)
 @router.post("/prj/adduser")
 async def api_prj_adduser_post(payload: project_adduser):
-    return {}
+    """
+    프로젝트에 팀원 추가
+    """
+    if project_DB.add_project_user(payload.pid, payload.univ_id, payload.role):
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": {}
+        }
+    else:
+        return {
+            "RESULT_CODE": 500,
+            "RESULT_MSG": "Internal Server Error",
+            "PAYLOADS": {}
+        }
 
-# delete_project_user(pid, univ_id)
 @router.post("/prj/deleteuser")
 async def api_prj_deleteuser_post(payload: project_deleteuser):
-    return {}
+    """
+    프로젝트에서 팀원 삭제
+    """
+    if project_DB.delete_project_user(payload.pid, payload.univ_id):
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": {}
+        }
+    else:
+        return {
+            "RESULT_CODE": 500,
+            "RESULT_MSG": "Internal Server Error",
+            "PAYLOADS": {}
+        }
 
-# edit_project_user(id, name, email, univ_id, pid, role)
 @router.post("/prj/edituser")
 async def api_prj_edituser_post(payload: project_edituser):
-    return {}
+    """
+    팀원 정보 수정
+    """
+    if project_DB.edit_project_user(payload.id, payload.name, payload.email, payload.univ_id, payload.pid, payload.role):
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": {}
+        }
+    else:
+        return {
+            "RESULT_CODE": 500,
+            "RESULT_MSG": "Internal Server Error",
+            "PAYLOADS": {}
+        }
 
-# validate_pm_permission(pid, univ_id)
 @router.post("/prj/checkpm")
 async def api_rpj_checkpm_post(payload: project_checkpm):
-    return {}
+    """
+    PM 권한 확인
+    """
+    has_permission = project_DB.validate_pm_permission(payload.pid, payload.univ_id)
+    if has_permission:
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": {
+                "permission": "granted"
+            }
+        }
+    else:
+        return {
+            "RESULT_CODE": 403,
+            "RESULT_MSG": "Forbidden",
+            "PAYLOADS": {
+                "permission": "denied"
+            }
+        }
