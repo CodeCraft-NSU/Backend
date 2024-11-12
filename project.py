@@ -84,15 +84,16 @@ async def api_prj_init_post(payload: project_init):
 async def api_prj_edit_post(payload: project_edit):
     """
     DB에 payload로 전달받은 정보를 수정하는 쿼리 실행
-    예시로, 가상의 함수 edit_project()를 사용한다고 가정
-    edit_result = edit_project(payload)
+    project_DB의 edit_project 사용
     """
-    edit_result = True
-    return {"RESULT_CODE": 200,
-            "RESULT_MSG": "Success",
-            "PAYLOADS": {
-                            "edit_result": edit_result
-                        }}
+    if project_DB.edit_project(payload):
+        return {"RESULT_CODE": 200,
+                "RESULT_MSG": "Success",
+                "PAYLOADS": {}}
+    else:
+        return {"RESULT_CODE": 500,
+                "RESULT_MSG": "Internal Server Error",
+                "PAYLOADS": {}}
 
 @router.get("/project/load")
 async def api_prj_load_get(payload: project_load):
