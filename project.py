@@ -39,6 +39,9 @@ class project_edit(BaseModel): # 프로젝트 수정 클래스
 class project_load(BaseModel): #프로젝트 로드 클래스
     univ_id: int # 학번으로 자신이 소유한 프로젝트를 불러옴
 
+class project_delete(BaseModel):
+    pid = str
+
 def gen_project_uid(): # 프로젝트 고유 ID 생성 함수
     """
     5자의 수열을 무작위로 만들되, DB와 통신해서 중복되지 않은 수열인지 먼저 체크 후 return함
@@ -95,8 +98,8 @@ async def api_prj_edit_post(payload: project_edit):
                 "RESULT_MSG": "Internal Server Error",
                 "PAYLOADS": {}}
 
-@router.get("/project/load")
-async def api_prj_load_get(payload: project_load):
+@router.post("/project/load")
+async def api_prj_load_post(payload: project_load):
     """
     DB에서 데이터를 가져오는 쿼리 실행
     project_info = fetch_project_info(payload.univ_id) 학번을 기준으로 프로젝트 정보 조회
@@ -126,3 +129,16 @@ async def api_prj_load_get(payload: project_load):
         "RESULT_MSG": "Success",
         "PAYLOADS": payloads
     }
+
+@router.post("/prj/delete")
+async def api_prj_delete_post(payload: project_delete):
+    if project_DB.delete_project(payload.pid):
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": {}}
+    else:
+        return {
+            "RESULT_CODE": 500,
+            "RESULT_MSG": "Internal Server Error",
+            "PAYLOADS": {}}
