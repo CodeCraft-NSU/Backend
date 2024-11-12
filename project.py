@@ -130,6 +130,11 @@ async def api_prj_load_post(payload: project_load):
         "PAYLOADS": payloads
     }
 
+# fetch_project_user(pid)
+@router.post("/prj/loaduser")
+async def api_prj_loaduser_post(payload: project_loaduser):
+    return {}
+
 @router.post("/prj/delete")
 async def api_prj_delete_post(payload: project_delete):
     if project_DB.delete_project(payload.pid):
@@ -142,3 +147,23 @@ async def api_prj_delete_post(payload: project_delete):
             "RESULT_CODE": 500,
             "RESULT_MSG": "Internal Server Error",
             "PAYLOADS": {}}
+
+# add_project_user(pid, univ_id, role)
+@router.post("/prj/adduser")
+async def api_prj_adduser_post(payload: project_adduser):
+    return {}
+
+# delete_project_user(pid, univ_id)
+@router.post("/prj/deleteuser")
+async def api_prj_deleteuser_post(payload: project_deleteuser):
+    return {}
+
+# edit_project_user(id, name, email, univ_id, pid, role)
+@router.post("/prj/edituser")
+async def api_prj_edituser_post(payload: project_edituser):
+    return {}
+
+# validate_pm_permission(pid, univ_id)
+@router.post("/prj/checkpm")
+async def api_rpj_checkpm_post(payload: project_checkpm):
+    return {}
