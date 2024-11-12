@@ -17,7 +17,7 @@ import random # gen_project_uid 함수에서 사용
 import sys, os
 
 sys.path.append(os.path.abspath('/data/Database Project')) # Database Project와 연동하기 위해 사용
-import account_DB
+import project_DB
 
 router = APIRouter()
 
@@ -63,15 +63,15 @@ def gen_project_uid(): # 프로젝트 고유 ID 생성 함수
 async def api_prj_init_post(payload: project_init):
     """
     DB에 payload로 전달받은 정보를 기입하는 쿼리 실행
-    예시로, 가상의 함수 init_project()를 사용한다고 가정
-    init_result = init_project(payload)
+    project_DB의 init_project()를 사용함
     """
     PUID = gen_project_uid()
-    if init_result is True:
+    if project_DB.init_result(payload, PUID) is True:
         return {"RESULT_CODE": 200,
                 "RESULT_MSG": "Success",
                 "PAYLOADS": {
-                                "result": "OK;" + PUID
+                                "result": "OK",
+                                "PUID": PUID
                             }}
     else:
         return {"RESULT_CODE": 500,
