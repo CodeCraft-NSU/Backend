@@ -28,7 +28,7 @@ class project_init(BaseModel): # 프로젝트 생성 클래스
     pperiod: str # 프로젝트 개발 기간 241012-241130
     pmm: int # 프로젝트 관리 방법론; project management methodologies
 
-class project_edit(BaseModel): # 프로젝트 생성 클래스
+class project_edit(BaseModel): # 프로젝트 수정 클래스
     pid: int # 프로젝트의 고유번호
     pname: str # 프로젝트 이름
     pdetails: str # 프로젝트 내용
@@ -97,30 +97,32 @@ async def api_prj_edit_post(payload: project_edit):
 
 @router.get("/project/load")
 async def api_prj_load_get(payload: project_load):
-    session = db_connect()  # DB에 접속
     """
     DB에서 데이터를 가져오는 쿼리 실행
-    예시로, 가상의 함수 fetch_project_info()를 사용한다고 가정
     project_info = fetch_project_info(payload.univ_id) 학번을 기준으로 프로젝트 정보 조회
     """
-    if project_info:
-        pid = project_info['pid']
-        pname = project_info['pname']
-        pdetails = project_info['pdetails']
-        psize = project_info['psize']
-        pperiod = project_info['pperiod']
-        pmm = project_info['pmm']
-    else:
-        raise HTTPException(status_code=404, detail={"RESULT_CODE": 404,
-                                                     "RESULT_MSG": "Not Found",
-                                                     "PAYLOADS": {}})
-    return {"RESULT_CODE": 200,
-            "RESULT_MSG": "Success",
-            "PAYLOADS": {
-                            "pid": pid,
-                            "pname": pname,
-                            "pdetails": pdetails,
-                            "psize": psize,
-                            "pperiod": pperiod,
-                            "pmm": pmm
-                        }} # P021에 프로젝트 목표?
+    project_info = project_DB.fetch_project_info(payload.univ_id)
+    if project_info is False:
+        return {
+            "RESULT_CODE": 500,
+            "RESULT_MSG": "Internal Server Error",
+            "PAYLOADS": {}
+        }
+
+    payloads = []
+    for project in project_info:
+        pperiod = project["p_start"] + "-" + project["p_end"]
+        payloads.append({
+            "pid": project["p_no"],  # p.p_no
+            "pname": project["p_name"],  # p.p_name
+            "pdetails": project["p_content"],  # p.p_content
+            "psize": project["p_memcount"],  # p.p_memcount
+            "pperiod": pperiod,  # p.p_start, p.p_end
+            "pmm": project["p_method"]  # p.p_method
+        })
+
+    return {
+        "RESULT_CODE": 200,
+        "RESULT_MSG": "Success",
+        "PAYLOADS": payloads
+    }
