@@ -13,11 +13,15 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import mysql_connection # MySQL 연결 기능 수행
+import sys, os
+
+sys.path.append(os.path.abspath('/data/Database Project')) # Database Project와 연동하기 위해 사용
+import task_DB
 
 router = APIRouter()
 
 class task_load(BaseModel): #업무 로드 클래스
+    pid: int
     univ_id: int # 학번으로 자신이 소유한 업무를 불러옴
 
 class task_add(BaseModel): #업무 추가 클래스
@@ -25,6 +29,8 @@ class task_add(BaseModel): #업무 추가 클래스
     tperson: str
     tstart: str
     tend: str
+    pid: int
+    univ_id: int
 
 class task_edit(BaseModel): #업무 수정 클래스
     tname: str
@@ -32,29 +38,33 @@ class task_edit(BaseModel): #업무 수정 클래스
     tstart: str
     tend: str
     tfinish: bool
+    tid: int
 
+class task_delete(BaseModel):
+    tid: int
+
+# fetch_task_info(pid, univ_id)
 @router.get("/task/load")
 async def api_tsk_load_get(payload: task_load):
-    db_connect()  # DB에 접속
     """
     DB에서 데이터를 가져오는 쿼리 실행
-    예시로, 가상의 함수 fetch_task_info()를 사용한다고 가정
-    task_info = fetch_task_info(payload.univ_id) 학번을 기준으로 프로젝트 정보 조회
     """
-    task_info_list = fetch_task_info(payload.univ_id)  # 여러 task 정보를 리스트로 가져온다고 가정
+    task_info_list = task_DB.fetch_task_info(payload.pid, payload.univ_id)  # 여러 task 정보를 리스트로 가져온다고 가정
 
     if not task_info_list:
-        raise HTTPException(status_code=404, detail="Task not found")  # 프로젝트가 없는 경우 예외 처리
+        return {"RESULT_CODE": 404,
+                "RESULT_MSG": "Project Not Found",
+                "PAYLOADS": {}}
     
     # 여러 개의 task_info를 처리
     tasks = []
     for task_info in task_info_list:
-        tid = task_info['tid']
-        tname = task_info['tname']
-        tperson = task_info['tperson']
-        tstart = task_info['tstart']
-        tend = task_info['tend']
-        tfinish = task_info['tfinish']
+        tid = task_info['w_no']
+        tname = task_info['w_name']
+        tperson = task_info['w_person']
+        tstart = task_info['w_start']
+        tend = task_info['w_end']
+        tfinish = task_info['w_checked']
         
         tasks.append({
             "tid": tid,
@@ -64,41 +74,67 @@ async def api_tsk_load_get(payload: task_load):
             "tend": tend,
             "tfinish": tfinish
         })
-    
-    return tasks  # 리스트로 반환
+
+    return {"RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": tasks}
 
 @router.post("/task/add")
 async def api_tsk_add_post(payload: task_add):
-    db_connect()  # DB에 접속
-    
-    # 예시로, 가상의 함수 add_task_info()를 사용한다고 가정
     task_id = add_task_info(
         tname=payload.tname,
         tperson=payload.tperson,
         tstart=payload.tstart,
-        tend=payload.tend
+        tend=payload.tend,
+        pid=payload.pid,
+        univ_id=payload.univ_id
     )
     
     if task_id is None:
-        raise HTTPException(status_code=400, detail="Task addition failed")
+        return {
+            "RESULT_CODE": 500,
+            "RESULT_MSG": "Internal Server Error",
+            "PAYLOADS": {}}
     
-    return JSONResponse(content={"message": "Task added successfully", "task_id": task_id})
+    return {
+        "RESULT_CODE": 200,
+        "RESULT_MSG": "Success",
+        "PAYLOADS": {
+            "task_id": task_id
+        }}
 
 
-@router.put("/task/edit")
+@router.post("/task/edit")
 async def api_tsk_edit_post(payload: task_edit):
-    db_connect()  # DB에 접속
-    
-    # 예시로, 가상의 함수 update_task_info()를 사용한다고 가정
     updated = update_task_info(
         tname=payload.tname,
         tperson=payload.tperson,
         tstart=payload.tstart,
         tend=payload.tend,
-        tfinish=payload.tfinish
+        tfinish=payload.tfinish,
+        tid=payload.tid
     )
     
     if not updated:
-        raise HTTPException(status_code=400, detail="Task update failed")
+        return {
+            "RESULT_CODE": 500,
+            "RESULT_MSG": "Internal Server Error",
+            "PAYLOADS": {}}
     
-    return JSONResponse(content={"message": "Task updated successfully"})
+    return {
+        "RESULT_CODE": 200,
+        "RESULT_MSG": "Success",
+        "PAYLOADS": {}}
+
+@router.post("/task/delete")
+async def api_tsk_delete_post(payload: task_delete):
+    if task_DB.delete_task_info(task_delete.tid):
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Success",
+            "PAYLOADS": {}}
+    else:
+        return {
+            "RESULT_CODE": 500,
+            "RESULT_MSG": "Internal Server Error",
+            "PAYLOADS": {}}
