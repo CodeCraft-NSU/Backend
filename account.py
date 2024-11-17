@@ -1,3 +1,15 @@
+"""                                                          
+   CodeCraft PMS Backend Project                             
+                                                                              
+   파일명   : account.py                                                          
+   생성자   : 김창환                                
+                                                                              
+   생성일   : 2024/10/16                                                      
+   업데이트 : 2024/11/17                                                    
+                                                                             
+   설명     : 계정 생성, 로그인, 세션 관리를 위한 API 엔드포인트 정의
+"""
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import sys, os
