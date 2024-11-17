@@ -13,6 +13,9 @@
 # 모듈 추가 파트
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # 라우터 추가 파트
 from account import router as account_router
@@ -21,9 +24,9 @@ from task import router as task_router
 from output import router as output_router
 from test import router as test_router # Frontend Axios에서 API 통신 테스트를 위한 라우터
 
-# Database Project와의 연동을 위해 각 Router에 sys.path에 경로 정의 필요
+# Database Project와의 연동을 위해 각 Router에 sys.path 경로 정의 필요
 
-app = FastAPI()
+app = FastAPI(debug=True)
 
 # CORSMiddleware 정의
 app.add_middleware(
@@ -33,6 +36,30 @@ app.add_middleware(
     allow_methods=["*"], # HTTP의 모든 Method 허용
     allow_headers=["*"], # 모든 헤더 허용
 )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request, exc):
+    print(f"Unhandled error: {str(exc)}")  # 콘솔에 전체 예외 출력
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred", "error": str(exc)},
+    )
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    print(f"HTTP error: {exc.detail}")  # 콘솔에 HTTP 예외 출력
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    print(f"Validation error: {exc.errors()}")  # 콘솔에 검증 오류 출력
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
 
 @app.get("/")
 async def root():
