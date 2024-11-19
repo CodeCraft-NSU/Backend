@@ -21,7 +21,6 @@ import project_DB
 
 router = APIRouter()
 
-
 # 데이터 모델 정의
 class ProjectInit(BaseModel):  
     """프로젝트 생성 클래스"""
