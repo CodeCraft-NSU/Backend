@@ -71,13 +71,9 @@ class ProjectDeleteUser(BaseModel):
 
 class ProjectEditUser(BaseModel):  
     """프로젝트 팀원 수정 클래스"""
-    id: str  # 수정하려는 팀원의 고유 ID
-    name: str  # 팀원의 이름
-    email: str  # 팀원의 이메일
     univ_id: int  # 팀원의 학번
     pid: int  # 팀원이 소속된 프로젝트의 고유번호
     role: str  # 팀원의 역할 (수정된 역할)
-
 
 class ProjectCheckPM(BaseModel):  
     """PM 권한 확인 클래스"""
