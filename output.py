@@ -111,7 +111,16 @@ async def add_summary_document(payload: SummaryDocumentPayload):
     프로젝트 개요서 간단본 추가 API
     """
     try:
-        document_id = output_DB.add_summary_document(**payload.dict())
+        document_id = output_DB.add_summary_document(
+            pname=payload.pname,
+            pteam=payload.pteam,
+            psummary=payload.psummary,
+            pstart=payload.pstart,
+            pend=payload.pend,
+            prange=payload.prange,
+            poutcomes=payload.poutcomes,
+            pid=payload.pid
+        )
         return {"RESULT_CODE": 200, "RESULT_MSG": "Summary document added successfully", "PAYLOADS": {"doc_s_no": document_id}}
     except Exception as e:
         print(f"Error [add_summary_document]: {e}")
