@@ -585,6 +585,83 @@ async def add_other_document(
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during file upload and metadata saving: {str(e)}")
-        
-# ------------------------------ 여기까지 검증 완료 ------------------------------ #
+      
+      
+@router.post("/output/otherdoc_edit_path") # 실제로 사용하게 될지는 의문?
+async def edit_otherdoc_path(file_unique_id: int = Form(...), new_file_path: str = Form(...)):
+    """
+    기타 산출물 경로 수정 API
+    """
+    try:
+        result = output_DB.edit_file_path(
+            file_unique_id=file_unique_id,
+            new_file_path=new_file_path
+        )
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "File path updated successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update file path")
+    except Exception as e:
+        print(f"Error [edit_file_path]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error editing file path: {e}")
 
+
+@router.post("/output/otherdoc_edit_name")
+async def edit_otherdoc_path(file_unique_id: int = Form(...), new_file_name: str = Form(...)):
+    """
+    기타 산출물 이름 수정 API
+    """
+    try:
+        result = output_DB.edit_file_name(
+            file_unique_id=file_unique_id,
+            new_file_name=new_file_name
+        )
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "File name updated successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update file name")
+    except Exception as e:
+        print(f"Error [edit_file_name]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error editing file name: {e}")
+
+
+@router.post("/output/otherdoc_fetch_all")
+async def fetch_all_otherdoc(pid: int = Form(...)):
+    """
+    기타 산출물 조회 API
+    """
+    try:
+        documents = output_DB.fetch_all_other_documents(pid)
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Other Documents fetched successfully", "PAYLOADS": documents}
+    except Exception as e:
+        print(f"Error [fetch_all_other_documents]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching Lists: {e}")
+
+
+@router.post("/output/otherdoc_fetch_path") # 사용할지 의문
+async def fetch_all_otherdoc(file_unique_id: int = Form(...)):
+    """
+    기타 산출물 경로 조회 API
+    """
+    try:
+        documents = output_DB.fetch_file_path(file_unique_id)
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Other Documents fetched successfully", "PAYLOADS": documents}
+    except Exception as e:
+        print(f"Error [fetch_file_path]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching Lists: {e}")
+
+
+@router.post("/output/otherdoc_delete")
+async def delete_other_document(file_unique_id: int = Form(...)):
+    """
+    기타 산출물  삭제 API
+    """
+    try:
+        result = output_DB.delete_other_document(file_unique_id)
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Other document deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete other document")
+    except Exception as e:
+        print(f"Error [delete_reqspec]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting other document: {e}")
