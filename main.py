@@ -46,23 +46,23 @@ app.add_middleware(
     allow_headers=["*", "Authorization"],  # Authorization 헤더 명시적으로 허용
 )
 
-class APIKeyMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        if request.method == "OPTIONS":
-            return Response(status_code=200, headers={
-                "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
-                "Access-Control-Allow-Methods": "*",
-                "Access-Control-Allow-Headers": "*",
-            })
-        authorization = request.headers.get("Authorization")
-        # print(f"Authorization Header: {authorization}")
-        # print(f"Headers: {request.headers}")  # 전체 헤더 출력
-        if authorization != API_KEY:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-        return await call_next(request)
+# class APIKeyMiddleware(BaseHTTPMiddleware):
+#     async def dispatch(self, request: Request, call_next):
+#         if request.method == "OPTIONS":
+#             return Response(status_code=200, headers={
+#                 "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
+#                 "Access-Control-Allow-Methods": "*",
+#                 "Access-Control-Allow-Headers": "*",
+#             })
+#         authorization = request.headers.get("Authorization")
+#         # print(f"Authorization Header: {authorization}")
+#         # print(f"Headers: {request.headers}")  # 전체 헤더 출력
+#         if authorization != API_KEY:
+#             raise HTTPException(status_code=401, detail="Unauthorized")
+#         return await call_next(request)
 
-# 미들웨어 등록
-app.add_middleware(APIKeyMiddleware)
+# # 미들웨어 등록
+# app.add_middleware(APIKeyMiddleware)
 
 
 # 예외 핸들러
