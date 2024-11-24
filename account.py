@@ -42,16 +42,20 @@ class DelAcc_Payload(BaseModel):
 class Usrpm_Payload(BaseModel):
     token: str
 
+class Checksession_Payload(BaseModel):
+    user_id: str
+    token: str
+
 def generate_token():
     """랜덤한 15자리 토큰 생성"""
     characters = string.ascii_letters + string.digits + string.punctuation
     return ''.join(random.choices(characters, k=15))
 
 @router.post("/acc/checksession")
-async def check_session(user_id: str, token: str):
+async def check_session(payload: Checksession_Payload):
     """세션 유효성 확인"""
     try:
-        is_valid = account_DB.validate_user_token(user_id, token)
+        is_valid = account_DB.validate_user_token(payload.user_id, payload.token)
         if is_valid:
             return {"RESULT_CODE": 200, "RESULT_MSG": "Session valid"}
         else:
@@ -118,9 +122,3 @@ async def api_acc_delacc_post(payload: DelAcc_Payload):
             raise HTTPException(status_code=500, detail="Account deletion failed")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unhandled exception during account deletion: {str(e)}")
-
-@router.post("/acc/usrpm")
-async def api_acc_userpm_post(payload: Usrpm_Payload):
-    """사용자 권한 확인 (구체적 구현 필요)"""
-    # 권한 확인 로직이 DB와 연동되지 않았으므로 예제 응답 반환
-    return {"RESULT_CODE": 200, "RESULT_MSG": "User permission fetched successfully", "PAYLOADS": {}}
