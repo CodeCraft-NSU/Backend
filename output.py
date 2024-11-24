@@ -74,7 +74,8 @@ class ReqSpecPayload(BaseModel):
     non_functional_priority: int
     system_item: str
     system_description: str
-    pid: int
+    pid: int = None
+    doc_r_no: int = None
 
 
 class TestCasePayload(BaseModel):
@@ -336,7 +337,28 @@ async def fetch_all_meeting_minutes(payload: DocumentFetchPayload):
         print(f"Error [fetch_all_MM_documents]: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching MM documents: {e}")
 
-# ------------------------------ 여기까지 검증 완료 ------------------------------ #
+@router.post("/output/reqspec_add")
+async def add_reqspec(payload: ReqSpecPayload):
+    """
+    요구사항 명세서 추가 API
+    """
+    try:
+        result = output_DB.add_reqspec(
+            feature_name=payload.feature_name,
+            description=payload.description,
+            priority=payload.priority,
+            non_functional_requirement_name=payload.non_functional_requirement_name,
+            non_functional_description=payload.non_functional_description,
+            non_functional_priority=payload.non_functional_priority,
+            system_item=payload.system_item,
+            system_description=payload.system_description,
+            pid=payload.pid
+        )
+        return {"RESULT_CODE": 200, "RESULT_MSG": "ReqSpec document added successfully", "PAYLOADS": {"doc_r_no": result}}
+    except Exception as e:
+        print(f"Error [add_reqspec]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error add ReqSpec document: {e}")
+
 
 @router.post("/output/reqspec_edit")
 async def edit_reqspec(payload: ReqSpecPayload):
@@ -344,7 +366,17 @@ async def edit_reqspec(payload: ReqSpecPayload):
     요구사항 명세서 수정 API
     """
     try:
-        result = output_DB.edit_reqspec(**payload.dict())
+        result = output_DB.edit_reqspec(
+            feature_name=payload.feature_name,
+            description=payload.description,
+            priority=payload.priority,
+            non_functional_requirement_name=payload.non_functional_requirement_name,
+            non_functional_description=payload.non_functional_description,
+            non_functional_priority=payload.non_functional_priority,
+            system_item=payload.system_item,
+            system_description=payload.system_description,
+            doc_r_no=payload.doc_r_no
+        )
         if result:
             return {"RESULT_CODE": 200, "RESULT_MSG": "Requirement specification updated successfully"}
         else:
@@ -382,6 +414,7 @@ async def delete_reqspec(payload: DocumentDeletePayload):
         print(f"Error [delete_reqspec]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting requirement specification: {e}")
 
+# ------------------------------ 여기까지 검증 완료 ------------------------------ #
 
 @router.post("/output/testcase_edit")
 async def edit_testcase(payload: TestCasePayload):
