@@ -7,14 +7,18 @@
     설명     : 산출물의 생성, 수정, 조회, 삭제, 업로드를 위한 API 엔드포인트 정의
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, File, UploadFile, Form
 from pydantic import BaseModel
-import sys, os
+from dotenv import load_dotenv
+from datetime import datetime
+import sys, os, random, requests
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import output_DB
 
 router = APIRouter()
+UPLOAD_DIR = "uploaded_files"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 class SummaryDocumentPayload(BaseModel):
     """프로젝트 개요서 간단본 모델"""
@@ -91,8 +95,6 @@ class TestCasePayload(BaseModel):
 class OtherDocumentPayload(BaseModel):
     """기타 산출물 모델"""
     file_unique_id: str = None
-    file_name: str
-    file_path: str
     pid: int = None
 
 
@@ -483,29 +485,106 @@ async def delete_testcase(payload: DocumentDeletePayload):
         print(f"Error [delete_testcase]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting test case: {e}")
 
-# ------------------------------ 여기까지 검증 완료 ------------------------------ #
-
 # 기타 산출물 엔드포인트 구현 필요
 
 def gen_file_uid():
     """파일 고유 ID 생성"""
     while True:
-        tmp_uid = random.randint(1000000000, 9999999999)
-        if not output_DB.is_uid_exists(tmp_uid): return tmp_uid
+        tmp_uid = random.randint(1, 2_147_483_647) # 본래 9999999이었으나, int형 최대 범위 때문에 줄임
+        if not output_DB.is_uid_exists(tmp_uid): return tmp_uid 
+
+def init_file_system(PUID):
+    load_dotenv()
+    headers = {"Authorization": os.getenv('ST_KEY')}
+    data = {"PUID": PUID}
+    try:
+        response = requests.post("http://192.168.50.84:10080/api/project/init", json=data, headers=headers)
+        if response.status_code == 200: return True
+        else: print(f"Error: {response.status_code} - {response.text}"); return False
+    except requests.exceptions.RequestException as e: 
+        print(f"Request failed: {e}"); return False
 
 @router.post("/output/otherdoc_add")
-async def add_other_document(payload: OtherDocumentPayload):
+async def add_other_document(
+    file: UploadFile = File(...),
+    pid: int = Form(...),
+):
     """
     기타 산출물 추가 API
     """
     try:
-        result = output_DB.add_other_document(
-            file_unique_id=gen_file_uid(),
-            file_name=payload.file_name,
-            file_path=payload.file_path,
-            pid=payload.pid
+        load_dotenv()
+        headers = {"Authorization": os.getenv('ST_KEY')}
+        file_unique_id = gen_file_uid()
+        data = {
+            "fuid": file_unique_id,
+            "pid": pid,
+            "userid": 20102056  # 예시 유저 ID
+        }
+
+        # 파일 읽기
+        file_content = await file.read()
+        files = {"file": (file.filename, file_content, file.content_type)}
+
+        # 외부 요청
+        response = requests.post(
+            "http://192.168.50.84:10080/api/output/otherdoc_add",
+            files=files,
+            data=data,
+            headers=headers
         )
-        return {"RESULT_CODE": 200, "RESULT_MSG": "other document added successfully", "PAYLOADS": {"file_unique_id": result}}
+
+        # 응답 상태 코드 확인
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Error: {response.status_code} - {response.text}"
+            )
+
+        # 응답 데이터 처리
+        response_data = response.json()
+        file_path = response_data.get("FILE_PATH")  # 외부 서버에서 반환된 파일 경로
+
+        # uploaded_date 변환
+        uploaded_date = response_data.get("uploaded_date")
+        if uploaded_date:
+            # Convert '241124-153059' to '2024-11-24 15:30:59'
+            uploaded_date = datetime.strptime(uploaded_date, "%y%m%d-%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            raise HTTPException(status_code=500, detail="uploaded_date is missing in the response")
+
+        # 메타데이터 저장
+        db_result = output_DB.add_other_document(
+            file_unique_id=file_unique_id,
+            file_name=file.filename,
+            file_path=file_path,
+            file_date=uploaded_date,  # DATETIME 형식으로 변환된 값
+            pid=pid
+        )
+
+        # DB 저장 실패 시 파일 삭제 처리
+        if not db_result:
+            os.remove(file_path)
+            raise HTTPException(
+                status_code=500,
+                detail="File uploaded but failed to save metadata to the database."
+            )
+
+        # 성공 응답 반환
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "File uploaded and metadata saved successfully.",
+            "PAYLOADS": {
+                "file_unique_id": file_unique_id,
+                "file_name": file.filename,
+                "file_path": file_path,
+            }
+        }
+
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
-        print(f"Error [add_other_document]: {e}")
-        raise HTTPException(status_code=500, detail=f"Error add other document: {e}")
+        raise HTTPException(status_code=500, detail=f"Error during file upload and metadata saving: {str(e)}")
+        
+# ------------------------------ 여기까지 검증 완료 ------------------------------ #
+
