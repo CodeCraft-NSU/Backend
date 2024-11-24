@@ -90,10 +90,10 @@ class TestCasePayload(BaseModel):
 
 class OtherDocumentPayload(BaseModel):
     """기타 산출물 모델"""
-    file_unique_id: str
+    file_unique_id: str = None
     file_name: str
     file_path: str
-    pid: int
+    pid: int = None
 
 
 class FilePathEditPayload(BaseModel):
@@ -486,3 +486,26 @@ async def delete_testcase(payload: DocumentDeletePayload):
 # ------------------------------ 여기까지 검증 완료 ------------------------------ #
 
 # 기타 산출물 엔드포인트 구현 필요
+
+def gen_file_uid():
+    """파일 고유 ID 생성"""
+    while True:
+        tmp_uid = random.randint(1000000000, 9999999999)
+        if not output_DB.is_uid_exists(tmp_uid): return tmp_uid
+
+@router.post("/output/otherdoc_add")
+async def add_other_document(payload: OtherDocumentPayload):
+    """
+    기타 산출물 추가 API
+    """
+    try:
+        result = output_DB.add_other_document(
+            file_unique_id=gen_file_uid(),
+            file_name=payload.file_name,
+            file_path=payload.file_path,
+            pid=payload.pid
+        )
+        return {"RESULT_CODE": 200, "RESULT_MSG": "other document added successfully", "PAYLOADS": {"file_unique_id": result}}
+    except Exception as e:
+        print(f"Error [add_other_document]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error add other document: {e}")

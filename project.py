@@ -13,8 +13,9 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from dotenv import load_dotenv
 import random  # gen_project_uid 함수에서 사용
-import sys, os
+import sys, os, requests
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
@@ -85,27 +86,62 @@ def gen_project_uid():
     """프로젝트 고유 ID 생성"""
     while True:
         tmp_uid = random.randint(10000, 99999)
-        # UID 중복 체크 필요 (생략)
-        return tmp_uid
+        if not project_DB.is_uid_exists(tmp_uid): return tmp_uid
 
+def init_file_system(PUID):
+    load_dotenv()
+    headers = {"Authorization": os.getenv('ST_KEY')}
+    data = {"PUID": PUID}
+    try:
+        response = requests.post("http://192.168.50.84:10080/api/project/init", json=data, headers=headers)
+        if response.status_code == 200: return True
+        else: print(f"Error: {response.status_code} - {response.text}"); return False
+    except requests.exceptions.RequestException as e: 
+        print(f"Request failed: {e}"); return False
 
 # API 엔드포인트
 @router.post("/project/init")
 async def api_project_init(payload: ProjectInit):
-    """프로젝트 생성"""
+    """프로젝트 생성 및 초기화"""
     try:
+        # 1. 프로젝트 고유 ID 생성
         PUID = gen_project_uid()
-        result = project_DB.init_project(payload, PUID)
-        if result is True:
-            return {
-                "RESULT_CODE": 200,
-                "RESULT_MSG": "Project created successfully",
-                "PAYLOADS": {"PUID": PUID},
-            }
-        raise HTTPException(status_code=500, detail="Project creation failed")
+        # 2. 프로젝트 데이터베이스 초기화
+        db_result = project_DB.init_project(payload, PUID)
+        if not db_result:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database initialization failed for PUID: {PUID}",
+            )
+        # 3. 파일 시스템 초기화
+        file_result = init_file_system(PUID)
+        if not file_result:
+            # 파일 시스템 초기화 실패 시 방금 생성된 프로젝트 삭제
+            delete_result = project_DB.delete_project(PUID)
+            if not delete_result:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"File system initialization failed for PUID: {PUID}, and cleanup also failed.",
+                )
+            raise HTTPException(
+                status_code=500,
+                detail=f"File system initialization failed for PUID: {PUID}. Project deleted successfully.",
+            )
+        # 4. 성공 응답 반환
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Project created successfully",
+            "PAYLOADS": {"PUID": PUID},
+        }
+    except HTTPException as http_exc:
+        # HTTPException은 그대로 전달
+        raise http_exc
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error during project creation: {str(e)}")
-
+        # 알 수 없는 예외 처리
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error during project creation: {str(e)}",
+        )
 
 @router.post("/project/edit")
 async def api_project_edit(payload: ProjectEdit):
