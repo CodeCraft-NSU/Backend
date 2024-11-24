@@ -84,7 +84,8 @@ class TestCasePayload(BaseModel):
     tcstart: str
     tcend: str
     tcpass: str
-    pid: int
+    pid: int = None
+    doc_t_no: int = None
 
 
 class OtherDocumentPayload(BaseModel):
@@ -414,7 +415,23 @@ async def delete_reqspec(payload: DocumentDeletePayload):
         print(f"Error [delete_reqspec]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting requirement specification: {e}")
 
-# ------------------------------ 여기까지 검증 완료 ------------------------------ #
+@router.post("/output/testcase_add")
+async def add_testcase(payload: TestCasePayload):
+    """
+    테스트 케이스 추가 API
+    """
+    try:
+        result = output_DB.add_testcase(
+            tcname=payload.tcname,
+            tcstart=payload.tcstart,
+            tcend=payload.tcend,
+            tcpass=payload.tcpass,
+            pid=payload.pid
+        )
+        return {"RESULT_CODE": 200, "RESULT_MSG": "test case document added successfully", "PAYLOADS": {"doc_r_no": result}}
+    except Exception as e:
+        print(f"Error [add_testcase]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error add test case document: {e}")
 
 @router.post("/output/testcase_edit")
 async def edit_testcase(payload: TestCasePayload):
@@ -422,7 +439,13 @@ async def edit_testcase(payload: TestCasePayload):
     테스트 케이스 수정 API
     """
     try:
-        result = output_DB.edit_testcase(**payload.dict())
+        result = output_DB.edit_testcase(
+            tcname=payload.tcname,
+            tcstart=payload.tcstart,
+            tcend=payload.tcend,
+            tcpass=payload.tcpass,
+            doc_t_no=payload.doc_t_no
+        )
         if result:
             return {"RESULT_CODE": 200, "RESULT_MSG": "Test case updated successfully"}
         else:
@@ -459,3 +482,7 @@ async def delete_testcase(payload: DocumentDeletePayload):
     except Exception as e:
         print(f"Error [delete_testcase]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting test case: {e}")
+
+# ------------------------------ 여기까지 검증 완료 ------------------------------ #
+
+# 기타 산출물 엔드포인트 구현 필요
