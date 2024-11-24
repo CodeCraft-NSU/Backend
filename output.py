@@ -491,7 +491,7 @@ async def delete_testcase(payload: DocumentDeletePayload):
 def gen_file_uid():
     """파일 고유 ID 생성"""
     while True:
-        tmp_uid = random.randint(1, 2_147_483_647) # 본래 9999999이었으나, int형 최대 범위 때문에 줄임
+        tmp_uid = random.randint(1, 2_147_483_647) # 본래 9,999,999이었으나, int형 최대 범위 때문에 줄임
         if not output_DB.is_uid_exists(tmp_uid): return tmp_uid 
 
 @router.post("/output/otherdoc_add")
