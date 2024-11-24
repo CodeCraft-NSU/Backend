@@ -32,30 +32,34 @@ from upload import router as upload_router
 from test import router as test_router  # Frontend Axios에서 API 통신 테스트를 위한 라우터
 
 # Database Project와의 연동을 위해 각 Router에 sys.path 경로 정의 필요
-
 app = FastAPI(debug=True)
-
-# CORSMiddleware 정의
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://cd-api.chals.kim", "https://cd-web.chals.kim"],  # API 서버의 접근을 허용할 도메인
-    allow_credentials=True,
-    allow_methods=["*"],  # HTTP의 모든 Method 허용
-    allow_headers=["*"],  # 모든 헤더 허용
-)
 
 load_dotenv()
 API_KEY = os.getenv('API_KEY')
+# print(f"Loaded API_KEY: {API_KEY}")
 
-# 미들웨어 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://cd-web.chals.kim"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*", "Authorization"],  # Authorization 헤더 명시적으로 허용
+)
+
 class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Authorization 헤더에서 API Key 추출
+        if request.method == "OPTIONS":
+            return Response(status_code=200, headers={
+                "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
+                "Access-Control-Allow-Methods": "*",
+                "Access-Control-Allow-Headers": "*",
+            })
         authorization = request.headers.get("Authorization")
+        # print(f"Authorization Header: {authorization}")
+        # print(f"Headers: {request.headers}")  # 전체 헤더 출력
         if authorization != API_KEY:
             raise HTTPException(status_code=401, detail="Unauthorized")
         return await call_next(request)
-
 
 # 미들웨어 등록
 app.add_middleware(APIKeyMiddleware)
@@ -70,6 +74,12 @@ async def generic_exception_handler(request, exc):
         content={"detail": "An unexpected error occurred", "error": str(exc)},
     )
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
