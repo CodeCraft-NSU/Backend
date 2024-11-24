@@ -28,6 +28,7 @@ from account import router as account_router
 from project import router as project_router
 from task import router as task_router
 from output import router as output_router
+from upload import router as upload_router
 from test import router as test_router  # Frontend Axios에서 API 통신 테스트를 위한 라우터
 
 # Database Project와의 연동을 위해 각 Router에 sys.path 경로 정의 필요
@@ -98,4 +99,5 @@ app.include_router(account_router, prefix="/api")
 app.include_router(project_router, prefix="/api")
 app.include_router(task_router, prefix="/api")
 app.include_router(output_router, prefix="/api")
+app.include_router(upload_router, prefix="/api")
 app.include_router(test_router, prefix="/api")  # 정식 Release 전 Delete 필요

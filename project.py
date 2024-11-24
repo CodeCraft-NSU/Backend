@@ -183,6 +183,7 @@ async def api_project_load(payload: ProjectLoad):
 @router.post("/project/delete")
 async def api_project_delete(payload: ProjectDelete):
     """프로젝트 삭제"""
+    # 존재하지 않는 PID 번호로 프로젝트를 삭제하려고 시도해도 Project deleted successfully가 나오는 문제가 존재
     try:
         result = project_DB.delete_project(payload.pid)
         if result is True:
