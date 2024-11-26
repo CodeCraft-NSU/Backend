@@ -107,9 +107,8 @@ async def fetch_one_grade(payload: GradePayload):
             pid=payload.pid,
             univ_id=payload.univ_id
         )
-        if isinstance(result, Exception):
-            raise HTTPException(status_code=500, detail=f"Error in Database Operation: {str(result)}")
-        return {"RESULT_CODE": 200, "RESULT_MSG": "Fetch Successful.", "PAYLOAD": {"Grade": result}}
+        if result: return {"RESULT_CODE": 200, "RESULT_MSG": "Fetch Successful.", "PAYLOAD": {"Grade": result}}
+        else: raise HTTPException(status_code=500, detail=f"Error in Database Operation: {str(result)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
@@ -119,9 +118,8 @@ async def fetch_one_student(payload: GradePayload):
         result = grade_DB.fetch_grade_by_student(
             univ_id=payload.univ_id
         )
-        if isinstance(result, Exception):
-            raise HTTPException(status_code=500, detail=f"Error in Database Operation: {str(result)}")
-        return {"RESULT_CODE": 200, "RESULT_MSG": "Fetch Successful.", "PAYLOAD": {"Grade": result}}
+        if result: return {"RESULT_CODE": 200, "RESULT_MSG": "Fetch Successful.", "PAYLOAD": {"Grade": result}}
+        else: raise HTTPException(status_code=500, detail=f"Error in Database Operation: {str(result)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
@@ -131,8 +129,7 @@ async def fetch_one_student(payload: GradePayload):
         result = grade_DB.fetch_grade_by_student(
             pid=payload.pid
         )
-        if isinstance(result, Exception):
-            raise HTTPException(status_code=500, detail=f"Error in Database Operation: {str(result)}")
-        return {"RESULT_CODE": 200, "RESULT_MSG": "Fetch Successful.", "PAYLOAD": {"Grade": result}}
+        if result: return {"RESULT_CODE": 200, "RESULT_MSG": "Fetch Successful.", "PAYLOAD": {"Grade": result}}
+        else: raise HTTPException(status_code=500, detail=f"Error in Database Operation: {str(result)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
