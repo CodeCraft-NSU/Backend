@@ -29,6 +29,8 @@ from project import router as project_router
 from task import router as task_router
 from output import router as output_router
 from upload import router as upload_router
+from grade import router as grade_router
+from wbs import router as wbs_router
 from test import router as test_router  # Frontend Axios에서 API 통신 테스트를 위한 라우터
 
 # Database Project와의 연동을 위해 각 Router에 sys.path 경로 정의 필요
@@ -46,6 +48,7 @@ app.add_middleware(
     allow_headers=["*", "Authorization"],  # Authorization 헤더 명시적으로 허용
 )
 
+# API KEY 인증 비활성화 (24.11.24)
 # class APIKeyMiddleware(BaseHTTPMiddleware):
 #     async def dispatch(self, request: Request, call_next):
 #         if request.method == "OPTIONS":
@@ -110,4 +113,6 @@ app.include_router(project_router, prefix="/api")
 app.include_router(task_router, prefix="/api")
 app.include_router(output_router, prefix="/api")
 app.include_router(upload_router, prefix="/api")
+app.include_router(grade_router, prefix="/api")
+app.include_router(wbs_router, prefix="/api")
 app.include_router(test_router, prefix="/api")  # 정식 Release 전 Delete 필요
