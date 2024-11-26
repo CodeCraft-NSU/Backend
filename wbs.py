@@ -1,3 +1,15 @@
+"""
+   CodeCraft PMS Backend Project
+
+   파일명   : wbs.py                                                          
+   생성자   : 김창환                                                         
+                                                                              
+   생성일   : 2024/11/24                                                       
+   업데이트 : 2024/11/26                                                       
+                                                                              
+   설명     : WBS 관련 엔드포인트 정의
+"""
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
