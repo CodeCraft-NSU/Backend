@@ -81,17 +81,21 @@ async def api_acc_signup_post(payload: SignUp_Payload):
 async def api_acc_signin_post(payload: Signin_Payload):
     """사용자 로그인"""
     try:
-        is_valid = account_DB.validate_user(payload.id, payload.pw)
-        if isinstance(is_valid, Exception):
-            raise HTTPException(status_code=500, detail=f"Error during validation: {str(is_valid)}")
-        if is_valid:
-            token = generate_token()
-            save_result = account_DB.save_signin_user_token(payload.id, token)
-            if isinstance(save_result, Exception):
-                raise HTTPException(status_code=500, detail=f"Error saving session token: {str(save_result)}")
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Login successful", "PAYLOADS": {"Token": token}}
-        else:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+        s_no = account_DB.validate_user(payload.id, payload.pw)
+        if isinstance(s_no, Exception) or s_no is None:
+            raise HTTPException(status_code=401, detail="Invalid credentials or internal error during validation")
+        token = generate_token()
+        save_result = account_DB.save_signin_user_token(payload.id, token)
+        if isinstance(save_result, Exception):
+            raise HTTPException(status_code=500, detail=f"Error saving session token: {str(save_result)}")
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Login successful",
+            "PAYLOADS": {
+                "Token": token,
+                "Univ_ID": s_no
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unhandled exception during login: {str(e)}")
 
