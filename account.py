@@ -82,11 +82,13 @@ async def api_acc_signin_post(payload: Signin_Payload):
     """사용자 로그인"""
     try:
         s_no = account_DB.validate_user(payload.id, payload.pw)
-        if isinstance(s_no, Exception) or s_no is None:
-            raise HTTPException(status_code=401, detail="Invalid credentials or internal error during validation")
+        if s_no is None:  # 로그인 실패 처리
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        if isinstance(s_no, Exception):  # 예외 발생 처리
+            raise HTTPException(status_code=500, detail=f"Internal error during validation: {str(s_no)}")
         token = generate_token()
         save_result = account_DB.save_signin_user_token(payload.id, token)
-        if isinstance(save_result, Exception):
+        if isinstance(save_result, Exception):  # 토큰 저장 중 오류 처리
             raise HTTPException(status_code=500, detail=f"Error saving session token: {str(save_result)}")
         return {
             "RESULT_CODE": 200,
@@ -96,7 +98,11 @@ async def api_acc_signin_post(payload: Signin_Payload):
                 "Univ_ID": s_no
             }
         }
+    except HTTPException as http_err:
+        # 명시적으로 처리된 HTTP 예외는 재사용
+        raise http_err
     except Exception as e:
+        # 기타 모든 예외는 500으로 처리
         raise HTTPException(status_code=500, detail=f"Unhandled exception during login: {str(e)}")
 
 @router.post("/acc/signout")
