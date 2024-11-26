@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2024/11/19                                                      
+   업데이트 : 2024/11/26                                                  
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -30,6 +30,7 @@ class ProjectInit(BaseModel):
     psize: int  # 프로젝트 개발 인원
     pperiod: str  # 프로젝트 개발 기간 (예: "241012-241130")
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
+    univ_id: int
 
 
 class ProjectEdit(BaseModel):  
@@ -127,7 +128,14 @@ async def api_project_init(payload: ProjectInit):
                 status_code=500,
                 detail=f"File system initialization failed for PUID: {PUID}. Project deleted successfully.",
             )
-        # 4. 성공 응답 반환
+        # 4. 프로젝트의 유저 할당
+        adduser_result = project_DB.add_project_user(PUID, payload.univ_id, 1, "Project Leader")
+        if not adduser_result: 
+            raise HTTPException(
+                status_code=500,
+                detail=f"Add User to Project failed for PUID: {PUID}",
+            )
+        # 5. 성공 응답 반환
         return {
             "RESULT_CODE": 200,
             "RESULT_MSG": "Project created successfully",

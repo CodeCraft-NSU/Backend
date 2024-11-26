@@ -576,7 +576,8 @@ async def add_other_document(
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during file upload and metadata saving: {str(e)}")
-      
+
+# 기타 산출물을 프론트로 전송하는 기능 필요
       
 @router.post("/output/otherdoc_edit_path") # 실제로 사용하게 될지는 의문?
 async def edit_otherdoc_path(file_unique_id: int = Form(...), new_file_path: str = Form(...)):
