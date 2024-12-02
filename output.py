@@ -1,9 +1,12 @@
 """
     CodeCraft PMS Backend Project
+
     파일명   : output.py
     생성자   : 김창환
+
     생성일   : 2024/10/20
-    업데이트 : 2024/11/23
+    업데이트 : 2024/11/24
+
     설명     : 산출물의 생성, 수정, 조회, 삭제, 업로드를 위한 API 엔드포인트 정의
 """
 
@@ -485,29 +488,17 @@ async def delete_testcase(payload: DocumentDeletePayload):
         print(f"Error [delete_testcase]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting test case: {e}")
 
-# 기타 산출물 엔드포인트 구현 필요
-
 def gen_file_uid():
     """파일 고유 ID 생성"""
     while True:
-        tmp_uid = random.randint(1, 2_147_483_647) # 본래 9999999이었으나, int형 최대 범위 때문에 줄임
+        tmp_uid = random.randint(1, 2_147_483_647) # 본래 9,999,999이었으나, int형 최대 범위 때문에 줄임
         if not output_DB.is_uid_exists(tmp_uid): return tmp_uid 
-
-def init_file_system(PUID):
-    load_dotenv()
-    headers = {"Authorization": os.getenv('ST_KEY')}
-    data = {"PUID": PUID}
-    try:
-        response = requests.post("http://192.168.50.84:10080/api/project/init", json=data, headers=headers)
-        if response.status_code == 200: return True
-        else: print(f"Error: {response.status_code} - {response.text}"); return False
-    except requests.exceptions.RequestException as e: 
-        print(f"Request failed: {e}"); return False
 
 @router.post("/output/otherdoc_add")
 async def add_other_document(
     file: UploadFile = File(...),
     pid: int = Form(...),
+    univ_id: int = Form(...)
 ):
     """
     기타 산출물 추가 API
@@ -519,7 +510,7 @@ async def add_other_document(
         data = {
             "fuid": file_unique_id,
             "pid": pid,
-            "userid": 20102056  # 예시 유저 ID
+            "userid": univ_id
         }
 
         # 파일 읽기
@@ -560,7 +551,7 @@ async def add_other_document(
             file_path=file_path,
             file_date=uploaded_date,  # DATETIME 형식으로 변환된 값
             pid=pid
-        )
+        ) # 이후 univ_id 정의 필요
 
         # DB 저장 실패 시 파일 삭제 처리
         if not db_result:
@@ -585,7 +576,8 @@ async def add_other_document(
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during file upload and metadata saving: {str(e)}")
-      
+
+# 기타 산출물을 프론트로 전송하는 기능 필요
       
 @router.post("/output/otherdoc_edit_path") # 실제로 사용하게 될지는 의문?
 async def edit_otherdoc_path(file_unique_id: int = Form(...), new_file_path: str = Form(...)):

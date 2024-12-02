@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2024/11/17                                                    
+   업데이트 : 2024/11/24                                              
                                                                              
    설명     : 계정 생성, 로그인, 세션 관리를 위한 API 엔드포인트 정의
 """
@@ -81,18 +81,28 @@ async def api_acc_signup_post(payload: SignUp_Payload):
 async def api_acc_signin_post(payload: Signin_Payload):
     """사용자 로그인"""
     try:
-        is_valid = account_DB.validate_user(payload.id, payload.pw)
-        if isinstance(is_valid, Exception):
-            raise HTTPException(status_code=500, detail=f"Error during validation: {str(is_valid)}")
-        if is_valid:
-            token = generate_token()
-            save_result = account_DB.save_signin_user_token(payload.id, token)
-            if isinstance(save_result, Exception):
-                raise HTTPException(status_code=500, detail=f"Error saving session token: {str(save_result)}")
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Login successful", "PAYLOADS": {"Token": token}}
-        else:
+        s_no = account_DB.validate_user(payload.id, payload.pw)
+        if s_no is None:  # 로그인 실패 처리
             raise HTTPException(status_code=401, detail="Invalid credentials")
+        if isinstance(s_no, Exception):  # 예외 발생 처리
+            raise HTTPException(status_code=500, detail=f"Internal error during validation: {str(s_no)}")
+        token = generate_token()
+        save_result = account_DB.save_signin_user_token(payload.id, token)
+        if isinstance(save_result, Exception):  # 토큰 저장 중 오류 처리
+            raise HTTPException(status_code=500, detail=f"Error saving session token: {str(save_result)}")
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Login successful",
+            "PAYLOADS": {
+                "Token": token,
+                "Univ_ID": s_no
+            }
+        }
+    except HTTPException as http_err:
+        # 명시적으로 처리된 HTTP 예외는 재사용
+        raise http_err
     except Exception as e:
+        # 기타 모든 예외는 500으로 처리
         raise HTTPException(status_code=500, detail=f"Unhandled exception during login: {str(e)}")
 
 @router.post("/acc/signout")
