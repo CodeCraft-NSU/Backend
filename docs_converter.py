@@ -20,13 +20,10 @@ async def docs_convert(payload: ConverterPayload):
         meeting_data = output_DB.fetch_one_meeting_minutes(payload.doc_s_no)
         if not meeting_data:
             raise HTTPException(status_code=404, detail="Meeting data not found")
-        print("Fetched meeting data:", meeting_data)
-
         try:
             doc = Document("/data/Docs_Template/MM.docx")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Template loading error: {e}")
-
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
@@ -46,11 +43,10 @@ async def docs_convert(payload: ConverterPayload):
                     # 참석자 이름과 학번 조회하는 기능 구현 필요
                     for i in range(1, 21):  # 사용하지 않은 기호 삭제
                         cell.text = cell.text.replace(f"{{f{i}}}", "")
-                        
         output_path = f"/data/Backend Project/temp/회의록_{payload.doc_s_no}.docx"
         try:
             doc.save(output_path)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Document saving error: {e}")
-        return JSONResponse(content={"message": "Document created successfully", "file_path": output_path}) # 파일 return 기능 구현 필요
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Done!"} # 파일 return 기능 구현 필요
     raise HTTPException(status_code=400, detail="Invalid document type")
