@@ -550,6 +550,7 @@ async def add_other_document(
             file_name=file.filename,
             file_path=file_path,
             file_date=uploaded_date,  # DATETIME 형식으로 변환된 값
+            univ_id = univ_id,
             pid=pid
         ) # 이후 univ_id 정의 필요
 
