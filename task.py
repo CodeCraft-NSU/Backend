@@ -22,7 +22,7 @@ router = APIRouter()
 
 class TaskLoadPayload(BaseModel):
     pid: int
-    univ_id: int
+    univ_id: int = None
 
 class TaskAddPayload(BaseModel):
     tname: str
@@ -67,6 +67,17 @@ async def load_tasks(payload: TaskLoadPayload):
 
     except Exception as e:
         return {"RESULT_CODE": 500, "RESULT_MSG": str(e)}
+
+# 업무 모두 조회
+@router.post("/task/load_all")
+async def load_tasks_all(payload: TaskLoadPayload):
+    try:
+        tasks = task_DB.fetch_all_task_info(payload.pid)
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Tasks fetched successfully", "PAYLOADS": tasks}
+    except Exception as e:
+        print(f"Error [fetch_all_tasks_info]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching tasks info: {e}")
+
 
 # 업무 추가
 @router.post("/task/add")
