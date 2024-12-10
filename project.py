@@ -82,6 +82,10 @@ class ProjectCheckPM(BaseModel):
     pid: int  # 프로젝트 고유번호
     univ_id: int  # 확인하려는 사용자의 학번
 
+class ProjectCheckUser(BaseModel):
+    """프로젝트 팀원 조회 클래스"""
+    pid: int
+
 # 유틸리티 함수
 def gen_project_uid():
     """프로젝트 고유 ID 생성"""
@@ -249,13 +253,13 @@ async def api_project_check_pm(payload: ProjectCheckPM):
         raise HTTPException(status_code=500, detail=f"Error during permission check: {str(e)}")
 
 @router.post("/project/checkuser")
-async def api_project_check_user(pid: str):
+async def api_project_check_user(payload: ProjectCheckUser):
     """
     프로젝트 참여자 확인
     """
     try:
         # 프로젝트 참여자 목록 가져오기
-        users = project_DB.fetch_project_user(pid)
+        users = project_DB.fetch_project_user(payload.pid)
         # 데이터베이스 호출 실패 처리
         if isinstance(users, Exception):
             raise HTTPException(status_code=500, detail=f"Error fetching project users: {str(users)}")
@@ -267,6 +271,7 @@ async def api_project_check_user(pid: str):
             {
                 "univ_id": user["s_no"],
                 "role": user["role"],
+                "name": user["s_name"],
                 "permission": user["permission"]
             }
             for user in users

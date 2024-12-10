@@ -60,13 +60,13 @@ class DocumentFetchPayload(BaseModel):
 
 class MeetingMinutesPayload(BaseModel):
     """회의록 모델"""
-    main_agenda: str
-    date_time: str
-    location: str
-    participants: str
-    responsible_person: str
-    meeting_content: str
-    meeting_outcome: str
+    main_agenda: str # 안건
+    date_time: str # 일시
+    location: str # 장소
+    participants: str # 참석인원
+    responsible_person: str # 책임자명
+    meeting_content: str # 회의 내용
+    meeting_outcome: str # 회의 결과
     pid: int = None
     doc_m_no: int = None
 
@@ -550,6 +550,7 @@ async def add_other_document(
             file_name=file.filename,
             file_path=file_path,
             file_date=uploaded_date,  # DATETIME 형식으로 변환된 값
+            univ_id = univ_id,
             pid=pid
         ) # 이후 univ_id 정의 필요
 
