@@ -59,7 +59,7 @@ class WBSEditPayload(BaseModel):
     group1no: int
     group2no: int
     group3no: int
-    group3no: int
+    group4no: int
 
 class WBSDeletePayload(BaseModel):
     progress_no: int
