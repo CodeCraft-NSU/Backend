@@ -79,25 +79,27 @@ async def docs_convert(payload: ConverterPayload):
                         replace_placeholder_in_cell(cell, "{f5}", str(len(meeting_data.get("doc_m_member", "").split(";"))))
                         replace_placeholder_in_cell(cell, "{f6}", meeting_data.get("doc_m_content", ""))
                         replace_placeholder_in_cell(cell, "{f7}", meeting_data.get("doc_m_result", ""))
-                        replace_placeholder_in_cell(cell, "{f8}", "김창환")
-            # # 참석자 데이터 처리
-            # members = meeting_data.get("doc_m_member", "").split(";")
-            # for i, member in enumerate(members):
-            #     if i >= 4:  # 템플릿에 최대 4명까지만 지원
-            #         break
-            #     name_match = re.match(r"([가-힣]+)(\d+)", member)
-            #     if name_match:
-            #         name, student_id = name_match.groups()
-            #         replace_placeholder_in_cell(doc.tables[0].cell(i + 1, 0), f"{{f{i * 2 + 8}}}", name)
-            #         replace_placeholder_in_cell(doc.tables[0].cell(i + 1, 1), f"{{f{i * 2 + 9}}}", student_id)
+                        # replace_placeholder_in_cell(cell, "{f8}", "김창환")
+                        members = [member.split(",") for member in meeting_data.get("doc_m_member", "").split(";")]
+                        try:
+                            replace_placeholder_in_cell(cell, "{f8}", members[0][0])
+                            replace_placeholder_in_cell(cell, "{f9}", members[0][1])
+                            replace_placeholder_in_cell(cell, "{f10}", members[1][0])
+                            replace_placeholder_in_cell(cell, "{f11}", members[1][1])
+                            replace_placeholder_in_cell(cell, "{f12}", members[2][0])
+                            replace_placeholder_in_cell(cell, "{f13}", members[2][1])
+                            replace_placeholder_in_cell(cell, "{f14}", members[3][0])
+                            replace_placeholder_in_cell(cell, "{f15}", members[3][1])
+                        except:
+                            pass
 
-            # # 나머지 자리표시자 초기화
-            # for i in range(8, 16):
-            #     placeholder = f"{{f{i}}}"
-            #     for table in doc.tables:
-            #         for row in table.rows:
-            #             for cell in row.cells:
-            #                 replace_placeholder_in_cell(cell, placeholder, "")
+            # 나머지 자리표시자 초기화
+            for i in range(8, 16):
+                placeholder = f"{{f{i}}}"
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            replace_placeholder_in_cell(cell, placeholder, "")
 
             # 문서 저장
             output_path = f"/data/Backend Project/temp/회의록_{payload.doc_s_no}.docx"
