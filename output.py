@@ -35,10 +35,13 @@ class SummaryDocumentPayload(BaseModel):
     pid: int = None
     doc_s_no: int = None  # 추가: 수정 작업에서 사용되며, 추가 작업에서는 선택적(None)
 
+
 class OverviewDocumentPayload(BaseModel):
     """프로젝트 개요서 상세본 모델"""
-    poverview: str
+    pname: str
     pteam: str
+    poverview: str
+    poutcomes: str
     pgoals: str
     pstart: str
     pend: str
@@ -194,7 +197,18 @@ async def add_overview_document(payload: OverviewDocumentPayload):
     프로젝트 개요서 상세본 추가 API
     """
     try:
-        document_id = output_DB.add_overview_document(**payload.dict())
+        document_id = output_DB.add_overview_document(
+            pname=payload.pname,
+            pteam=payload.pteam,
+            poverview=payload.poverview,
+            poutcomes=payload.poutcomes,
+            pgoals=payload.pgoals,
+            pstart=payload.pstart,
+            pend=payload.pend,
+            prange=payload.prange,
+            pstack=payload.pstack,
+            pid=payload.pid
+        )
         return {"RESULT_CODE": 200, "RESULT_MSG": "Overview document added successfully", "PAYLOADS": {"doc_s_no": document_id}}
     except Exception as e:
         print(f"Error [add_overview_document]: {e}")
@@ -208,8 +222,10 @@ async def edit_overview_document(payload: OverviewDocumentPayload):
     """
     try:
         result = output_DB.edit_overview_document(
-            poverview=payload.poverview,
+            pname=payload.pname,
             pteam=payload.pteam,
+            poverview=payload.poverview,
+            poutcomes=payload.poutcomes,
             pgoals=payload.pgoals,
             pstart=payload.pstart,
             pend=payload.pend,
