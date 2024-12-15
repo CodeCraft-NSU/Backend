@@ -93,7 +93,7 @@ class TestCasePayload(BaseModel):
     tcname: str
     tcstart: str
     tcend: str
-    tcpass: str
+    tcpass: int
     pid: int = None
     doc_t_no: int = None
 
