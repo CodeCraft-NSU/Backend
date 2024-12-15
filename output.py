@@ -97,6 +97,22 @@ class TestCasePayload(BaseModel):
     pid: int = None
     doc_t_no: int = None
 
+class ReportPayload(BaseModel):
+    """보고서 모델"""
+    rname: str
+    rwriter: str
+    rdate: str
+    pname: str
+    pmember: str
+    pprof: str
+    pres: str
+    pdesign: str
+    parch: str
+    pres: str
+    pconc: str
+    pid: int = None
+    doc_rep_no: int = None
+
 
 class OtherDocumentPayload(BaseModel):
     """기타 산출물 모델"""

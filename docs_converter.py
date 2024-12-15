@@ -105,8 +105,16 @@ def process_meeting_minutes(doc_s_no):
 @router.post("/docs/convert")
 async def docs_convert(payload: ConverterPayload):
     try:
-        if payload.doc_type == 1:  # 회의록
+        if payload.doc_tpe == 0: # 프로젝트 개요서
+            return process_summary(payload.doc_s_no)
+        elif payload.doc_type == 1:  # 회의록
             return process_meeting_minutes(payload.doc_s_no)
+        elif payload.doc_type == 2: # 테스트 케이스
+            return process_test_case(payload.doc_s_no)
+        elif payload.doc_type == 3: # 요구사항 명세서
+            return process_reqspec(payload.doc_s_no)
+        elif payload.doc_type == 4: # 보고서
+            return process_report(payload.doc_s_no)
         else:
             raise HTTPException(status_code=400, detail="Unsupported document type")
     except Exception:
