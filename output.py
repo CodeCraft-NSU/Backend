@@ -105,10 +105,10 @@ class ReportPayload(BaseModel):
     pname: str
     pmember: str
     pprof: str
-    pres: str
+    presearch: str
     pdesign: str
     parch: str
-    pres: str
+    presult: str
     pconc: str
     pid: int = None
     doc_rep_no: int = None
@@ -519,6 +519,89 @@ async def delete_testcase(payload: DocumentDeletePayload):
     except Exception as e:
         print(f"Error [delete_testcase]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting test case: {e}")
+
+
+@router.post("/output/report_add")
+async def add_report(payload: ReportPayload):
+    """보고서 추가 API"""
+    try:
+        result = output_DB.add_report(
+            doc_rep_name=payload.rname,
+            doc_rep_writer=payload.rwriter,
+            doc_rep_date=payload.rdate,
+            doc_rep_pname=payload.pname,
+            doc_rep_member=payload.pmember,
+            doc_rep_professor=payload.pprof,
+            doc_rep_research=payload.presearch,
+            doc_rep_design=payload.pdesign,
+            doc_rep_arch=payload.parch,
+            doc_rep_result=payload.presult,
+            doc_rep_conclusion=payload.pconc,
+            pid=payload.pid
+        )
+        return {"RESULT_CODE": 200, "RESULT_MSG": "report document added successfully", "PAYLOADS": {"doc_rep_no": result}}
+    except Exception as e:
+        print(f"Error [add_report]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error add report document: {e}")
+
+
+@router.post("/output/report_edit")
+async def edit_report(payload: ReportPayload):
+    """
+    보고서 수정 API
+    """
+    try:
+        result = output_DB.edit_report(
+            doc_rep_name=payload.rname,
+            doc_rep_writer=payload.rwriter,
+            doc_rep_date=payload.rdate,
+            doc_rep_pname=payload.pname,
+            doc_rep_member=payload.pmember,
+            doc_rep_professor=payload.pprof,
+            doc_rep_research=payload.presearch,
+            doc_rep_design=payload.pdesign,
+            doc_rep_arch=payload.parch,
+            doc_rep_result=payload.presult,
+            doc_rep_conclusion=payload.pconc,
+            doc_rep_no=doc_rep_no.pid
+        )
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Report updated successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update report")
+    except Exception as e:
+        print(f"Error [edit_report]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error editing report: {e}")
+
+
+@router.post("/output/report_fetch_all")
+async def fetch_all_report(payload: DocumentFetchPayload):
+    """
+    보고서 조회 API
+    """
+    try:
+        report = output_DB.fetch_all_report(payload.pid)
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Report fetched successfully", "PAYLOADS": report}
+    except Exception as e:
+        print(f"Error [fetch_all_report]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching report: {e}")
+
+
+@router.post("/output/report_delete")
+async def delete_report(payload: DocumentDeletePayload):
+    """
+    보고서 삭제 API
+    """
+    try:
+        result = output_DB.delete_report(payload.doc_s_no)
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Report deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete report")
+    except Exception as e:
+        print(f"Error [delete_report]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting report: {e}")
+
 
 def gen_file_uid():
     """파일 고유 ID 생성"""
