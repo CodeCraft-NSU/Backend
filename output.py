@@ -131,6 +131,11 @@ class FileNameEditPayload(BaseModel):
     file_unique_id: str
     new_file_name: str
 
+
+class DownloadPayload(BaseModel):
+    """파일 다운로드 모델"""
+    file_type: int
+
 @router.post("/output/sum_doc_add")
 async def add_summary_document(payload: SummaryDocumentPayload):
     """
@@ -773,3 +778,8 @@ async def delete_other_document(file_unique_id: int = Form(...)):
     except Exception as e:
         print(f"Error [delete_reqspec]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting other document: {e}")
+
+@router.post("/output/download")
+async def download_file(payload: DownloadPayload):
+    """파일 다운로드 API"""
+    return {"구현 예정"}

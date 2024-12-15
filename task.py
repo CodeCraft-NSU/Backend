@@ -38,6 +38,7 @@ class TaskEditPayload(BaseModel):
     tstart: str
     tend: str
     tfinish: bool
+    univ_id: int
     tid: int
 
 class TaskDeletePayload(BaseModel):
@@ -59,6 +60,7 @@ async def load_tasks(payload: TaskLoadPayload):
                 "tstart": task["w_start"],
                 "tend": task["w_end"],
                 "tfinish": task["w_checked"],
+                "univ_id": task["s_no"]
             }
             for task in task_info_list
         ]
@@ -109,6 +111,7 @@ async def edit_task(payload: TaskEditPayload):
             tstart=payload.tstart,
             tend=payload.tend,
             tfinish=payload.tfinish,
+            univ_id=payload.univ_id,
             w_no=payload.tid,
         )
         if not success:
