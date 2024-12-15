@@ -563,7 +563,7 @@ async def edit_report(payload: ReportPayload):
             doc_rep_arch=payload.parch,
             doc_rep_result=payload.presult,
             doc_rep_conclusion=payload.pconc,
-            doc_rep_no=doc_rep_no.pid
+            doc_rep_no=payload.doc_rep_no
         )
         if result:
             return {"RESULT_CODE": 200, "RESULT_MSG": "Report updated successfully"}
