@@ -5,7 +5,7 @@
    생성자   : 김창환     
                                                   
    생성일   : 2024/10/20                                                      
-   업데이트 : 2024/11/23       
+   업데이트 : 2024/12/15
 
    설명     : 작업의 생성, 수정, 조회, 삭제를 위한 API 엔드포인트 정의 및 확장
 """
@@ -22,7 +22,7 @@ router = APIRouter()
 
 class TaskLoadPayload(BaseModel):
     pid: int
-    univ_id: int
+    univ_id: int = None
 
 class TaskAddPayload(BaseModel):
     tname: str
@@ -38,6 +38,7 @@ class TaskEditPayload(BaseModel):
     tstart: str
     tend: str
     tfinish: bool
+    univ_id: int
     tid: int
 
 class TaskDeletePayload(BaseModel):
@@ -59,6 +60,7 @@ async def load_tasks(payload: TaskLoadPayload):
                 "tstart": task["w_start"],
                 "tend": task["w_end"],
                 "tfinish": task["w_checked"],
+                "univ_id": task["s_no"]
             }
             for task in task_info_list
         ]
@@ -67,6 +69,17 @@ async def load_tasks(payload: TaskLoadPayload):
 
     except Exception as e:
         return {"RESULT_CODE": 500, "RESULT_MSG": str(e)}
+
+# 업무 모두 조회
+@router.post("/task/load_all")
+async def load_tasks_all(payload: TaskLoadPayload):
+    try:
+        tasks = task_DB.fetch_all_task_info(payload.pid)
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Tasks fetched successfully", "PAYLOADS": tasks}
+    except Exception as e:
+        print(f"Error [fetch_all_tasks_info]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching tasks info: {e}")
+
 
 # 업무 추가
 @router.post("/task/add")
@@ -98,6 +111,7 @@ async def edit_task(payload: TaskEditPayload):
             tstart=payload.tstart,
             tend=payload.tend,
             tfinish=payload.tfinish,
+            univ_id=payload.univ_id,
             w_no=payload.tid,
         )
         if not success:

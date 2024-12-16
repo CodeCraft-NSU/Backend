@@ -35,10 +35,13 @@ class SummaryDocumentPayload(BaseModel):
     pid: int = None
     doc_s_no: int = None  # 추가: 수정 작업에서 사용되며, 추가 작업에서는 선택적(None)
 
+
 class OverviewDocumentPayload(BaseModel):
     """프로젝트 개요서 상세본 모델"""
-    poverview: str
+    pname: str
     pteam: str
+    poverview: str
+    poutcomes: str
     pgoals: str
     pstart: str
     pend: str
@@ -60,13 +63,13 @@ class DocumentFetchPayload(BaseModel):
 
 class MeetingMinutesPayload(BaseModel):
     """회의록 모델"""
-    main_agenda: str
-    date_time: str
-    location: str
-    participants: str
-    responsible_person: str
-    meeting_content: str
-    meeting_outcome: str
+    main_agenda: str # 안건
+    date_time: str # 일시
+    location: str # 장소
+    participants: str # 참석인원
+    responsible_person: str # 책임자명
+    meeting_content: str # 회의 내용
+    meeting_outcome: str # 회의 결과
     pid: int = None
     doc_m_no: int = None
 
@@ -90,9 +93,25 @@ class TestCasePayload(BaseModel):
     tcname: str
     tcstart: str
     tcend: str
-    tcpass: str
+    tcpass: int
     pid: int = None
     doc_t_no: int = None
+
+class ReportPayload(BaseModel):
+    """보고서 모델"""
+    rname: str
+    rwriter: str
+    rdate: str
+    pname: str
+    pmember: str
+    pprof: str
+    presearch: str
+    pdesign: str
+    parch: str
+    presult: str
+    pconc: str
+    pid: int = None
+    doc_rep_no: int = None
 
 
 class OtherDocumentPayload(BaseModel):
@@ -111,6 +130,11 @@ class FileNameEditPayload(BaseModel):
     """파일 이름 수정 모델"""
     file_unique_id: str
     new_file_name: str
+
+
+class DownloadPayload(BaseModel):
+    """파일 다운로드 모델"""
+    file_type: int
 
 @router.post("/output/sum_doc_add")
 async def add_summary_document(payload: SummaryDocumentPayload):
@@ -194,7 +218,18 @@ async def add_overview_document(payload: OverviewDocumentPayload):
     프로젝트 개요서 상세본 추가 API
     """
     try:
-        document_id = output_DB.add_overview_document(**payload.dict())
+        document_id = output_DB.add_overview_document(
+            pname=payload.pname,
+            pteam=payload.pteam,
+            poverview=payload.poverview,
+            poutcomes=payload.poutcomes,
+            pgoals=payload.pgoals,
+            pstart=payload.pstart,
+            pend=payload.pend,
+            prange=payload.prange,
+            pstack=payload.pstack,
+            pid=payload.pid
+        )
         return {"RESULT_CODE": 200, "RESULT_MSG": "Overview document added successfully", "PAYLOADS": {"doc_s_no": document_id}}
     except Exception as e:
         print(f"Error [add_overview_document]: {e}")
@@ -208,8 +243,10 @@ async def edit_overview_document(payload: OverviewDocumentPayload):
     """
     try:
         result = output_DB.edit_overview_document(
-            poverview=payload.poverview,
+            pname=payload.pname,
             pteam=payload.pteam,
+            poverview=payload.poverview,
+            poutcomes=payload.poutcomes,
             pgoals=payload.pgoals,
             pstart=payload.pstart,
             pend=payload.pend,
@@ -488,6 +525,89 @@ async def delete_testcase(payload: DocumentDeletePayload):
         print(f"Error [delete_testcase]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting test case: {e}")
 
+
+@router.post("/output/report_add")
+async def add_report(payload: ReportPayload):
+    """보고서 추가 API"""
+    try:
+        result = output_DB.add_report(
+            doc_rep_name=payload.rname,
+            doc_rep_writer=payload.rwriter,
+            doc_rep_date=payload.rdate,
+            doc_rep_pname=payload.pname,
+            doc_rep_member=payload.pmember,
+            doc_rep_professor=payload.pprof,
+            doc_rep_research=payload.presearch,
+            doc_rep_design=payload.pdesign,
+            doc_rep_arch=payload.parch,
+            doc_rep_result=payload.presult,
+            doc_rep_conclusion=payload.pconc,
+            pid=payload.pid
+        )
+        return {"RESULT_CODE": 200, "RESULT_MSG": "report document added successfully", "PAYLOADS": {"doc_rep_no": result}}
+    except Exception as e:
+        print(f"Error [add_report]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error add report document: {e}")
+
+
+@router.post("/output/report_edit")
+async def edit_report(payload: ReportPayload):
+    """
+    보고서 수정 API
+    """
+    try:
+        result = output_DB.edit_report(
+            doc_rep_name=payload.rname,
+            doc_rep_writer=payload.rwriter,
+            doc_rep_date=payload.rdate,
+            doc_rep_pname=payload.pname,
+            doc_rep_member=payload.pmember,
+            doc_rep_professor=payload.pprof,
+            doc_rep_research=payload.presearch,
+            doc_rep_design=payload.pdesign,
+            doc_rep_arch=payload.parch,
+            doc_rep_result=payload.presult,
+            doc_rep_conclusion=payload.pconc,
+            doc_rep_no=payload.doc_rep_no
+        )
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Report updated successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update report")
+    except Exception as e:
+        print(f"Error [edit_report]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error editing report: {e}")
+
+
+@router.post("/output/report_fetch_all")
+async def fetch_all_report(payload: DocumentFetchPayload):
+    """
+    보고서 조회 API
+    """
+    try:
+        report = output_DB.fetch_all_report(payload.pid)
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Report fetched successfully", "PAYLOADS": report}
+    except Exception as e:
+        print(f"Error [fetch_all_report]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching report: {e}")
+
+
+@router.post("/output/report_delete")
+async def delete_report(payload: DocumentDeletePayload):
+    """
+    보고서 삭제 API
+    """
+    try:
+        result = output_DB.delete_report(payload.doc_s_no)
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Report deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete report")
+    except Exception as e:
+        print(f"Error [delete_report]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting report: {e}")
+
+
 def gen_file_uid():
     """파일 고유 ID 생성"""
     while True:
@@ -550,6 +670,7 @@ async def add_other_document(
             file_name=file.filename,
             file_path=file_path,
             file_date=uploaded_date,  # DATETIME 형식으로 변환된 값
+            univ_id = univ_id,
             pid=pid
         ) # 이후 univ_id 정의 필요
 
@@ -657,3 +778,8 @@ async def delete_other_document(file_unique_id: int = Form(...)):
     except Exception as e:
         print(f"Error [delete_reqspec]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting other document: {e}")
+
+@router.post("/output/download")
+async def download_file(payload: DownloadPayload):
+    """파일 다운로드 API"""
+    return {"구현 예정"}

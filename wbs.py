@@ -25,6 +25,7 @@ class WBSAddPayload(BaseModel):
     group1: str
     group2: str
     group3: str
+    group4: str
     work: str
     output_file: str
     manager: str
@@ -35,6 +36,7 @@ class WBSAddPayload(BaseModel):
     group1no: int
     group2no: int
     group3no: int
+    group4no: int
     pid: int
 
 class WBSMultipleAddPayload(BaseModel):
@@ -46,6 +48,7 @@ class WBSEditPayload(BaseModel):
     group1: str
     group2: str
     group3: str
+    group4: str
     work: str
     output_file: str
     manager: str
@@ -56,6 +59,7 @@ class WBSEditPayload(BaseModel):
     group1no: int
     group2no: int
     group3no: int
+    group4no: int
 
 class WBSDeletePayload(BaseModel):
     progress_no: int
@@ -74,6 +78,7 @@ async def add_one_wbs(payload: WBSAddPayload):
             group1=payload.group1,
             group2=payload.group2,
             group3=payload.group3,
+            group4=payload.group4,
             work=payload.work,
             output_file=payload.output_file,
             manager=payload.manager,
@@ -84,6 +89,7 @@ async def add_one_wbs(payload: WBSAddPayload):
             group1no=payload.group1no,
             group2no=payload.group2no,
             group3no=payload.group3no,
+            group4no=payload.group4no,
             pid=payload.pid,
         )
         if result:
@@ -113,6 +119,7 @@ async def edit_one_wbs(payload: WBSEditPayload):
             group1=payload.group1,
             group2=payload.group2,
             group3=payload.group3,
+            group4=payload.group4,
             work=payload.work,
             output_file=payload.output_file,
             manager=payload.manager,
@@ -123,6 +130,7 @@ async def edit_one_wbs(payload: WBSEditPayload):
             group1no=payload.group1no,
             group2no=payload.group2no,
             group3no=payload.group3no,
+            group4no=payload.group4no,
             progress_no=payload.progress_no,
         )
         if result:
