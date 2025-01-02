@@ -102,10 +102,61 @@ def process_meeting_minutes(doc_s_no):
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!"}
 
+def process_summary(doc_s_no):
+    """
+    프로젝트 개요서 문서를 생성하는 기능을 처리합니다.
+    """
+    # DB에서 프로젝트 개요서 데이터 조회
+    summary_data = output_DB.fetch_one_summary_document(doc_s_no)
+    if not summary_data:
+        raise HTTPException(status_code=404, detail="Project summary not found")
+
+    try:
+        # 템플릿 로드
+        doc = Document("/data/Docs_Template/개요서.docx")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Template loading error: {e}")
+
+    # 자리표시자 치환
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                replace_placeholder_in_cell(cell, "{f1}", summary_data.get("doc_s_name", ""))
+                replace_placeholder_in_cell(
+                    cell, "{f2}",
+                    summary_data.get("doc_s_start", "").strftime("%Y-%m-%d")
+                    if isinstance(summary_data.get("doc_s_start"), date)
+                    else str(summary_data.get("doc_s_start", ""))
+                )
+                replace_placeholder_in_cell(cell, "{f3}", summary_data.get("doc_s_team", ""))
+                replace_placeholder_in_cell(
+                    cell, "{f4}",
+                    summary_data.get("doc_s_end", "").strftime("%Y-%m-%d")
+                    if isinstance(summary_data.get("doc_s_end"), date)
+                    else str(summary_data.get("doc_s_end", ""))
+                )
+                replace_placeholder_in_cell(
+                    cell, "{f5}",
+                    summary_data.get("doc_s_date", "").strftime("%Y-%m-%d")
+                    if isinstance(summary_data.get("doc_s_date"), date)
+                    else str(summary_data.get("doc_s_date", ""))
+                )
+                replace_placeholder_in_cell(cell, "{f6}", summary_data.get("doc_s_overview", ""))
+                replace_placeholder_in_cell(cell, "{f7}", summary_data.get("doc_s_goals", ""))
+                replace_placeholder_in_cell(cell, "{f8}", summary_data.get("doc_s_range", ""))
+                replace_placeholder_in_cell(cell, "{f9}", summary_data.get("doc_s_stack", ""))
+                replace_placeholder_in_cell(cell, "{f10}", summary_data.get("doc_s_outcomes", ""))
+
+    # 문서 저장
+    output_path = f"/data/Backend Project/temp/개요서_{doc_s_no}.docx"
+    doc.save(output_path)
+
+    return {"RESULT_CODE": 200, "RESULT_MSG": "Done!", "OUTPUT_PATH": output_path}  
+
 @router.post("/docs/convert")
 async def docs_convert(payload: ConverterPayload):
     try:
-        if payload.doc_tpe == 0: # 프로젝트 개요서
+        if payload.doc_type == 0: # 프로젝트 개요서
             return process_summary(payload.doc_s_no)
         elif payload.doc_type == 1:  # 회의록
             return process_meeting_minutes(payload.doc_s_no)

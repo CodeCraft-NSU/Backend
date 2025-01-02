@@ -808,7 +808,7 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
     try:
         # 1. DB에서 파일 정보 조회
         logging.info(f"Fetching file info from DB for file_no: {payload.file_no}")
-        file_info = output_DB.fetch_other_documents(payload.file_no)
+        file_info = output_DB.fetch_one_other_documents(payload.file_no)
 
         if not file_info:
             logging.error(f"File not found in DB for file_no: {payload.file_no}")
@@ -878,11 +878,11 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
         logging.error(f"Unexpected error during file download process: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
-    # finally:
-    #     # 5. 전송 후 임시 파일 삭제
-    #     if temp_file_path and os.path.exists(temp_file_path):
-    #         try:
-    #             os.remove(temp_file_path)
-    #             logging.info(f"Temporary file deleted: {temp_file_path}")
-    #         except Exception as e:
-    #             logging.error(f"Failed to delete temporary file {temp_file_path}: {str(e)}")
+    finally:
+        # 5. 전송 후 임시 파일 삭제
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+                logging.info(f"Temporary file deleted: {temp_file_path}")
+            except Exception as e:
+                logging.error(f"Failed to delete temporary file {temp_file_path}: {str(e)}")
