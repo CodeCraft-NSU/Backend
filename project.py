@@ -233,7 +233,7 @@ async def api_project_delete_user(payload: ProjectDeleteUser):
 async def api_project_edit_user(payload: ProjectEditUser):
     """팀원 정보 수정"""
     try:
-        result = project_DB.edit_project_user(payload.id, payload.name, payload.email, payload.univ_id, payload.pid, payload.role)
+        result = project_DB.edit_project_user(payload.univ_id, payload.pid, payload.role)
         if result is True:
             return {"RESULT_CODE": 200, "RESULT_MSG": "User updated successfully"}
         raise HTTPException(status_code=500, detail="Failed to update user")
