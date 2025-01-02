@@ -11,10 +11,11 @@
 """
 
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from datetime import datetime
-import sys, os, random, requests
+import sys, os, random, requests, json, logging, shutil, subprocess
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import output_DB
@@ -135,6 +136,17 @@ class FileNameEditPayload(BaseModel):
 class DownloadPayload(BaseModel):
     """파일 다운로드 모델"""
     file_type: int
+
+class OtherDocDownloadPayload(BaseModel):
+    """
+    기타 산출물 다운로드 요청 모델
+    """
+    file_no: int
+
+
+TEMP_DOWNLOAD_DIR = "/data/tmp"
+STORAGE_API_KEY = os.getenv('ST_KEY')
+
 
 @router.post("/output/sum_doc_add")
 async def add_summary_document(payload: SummaryDocumentPayload):
@@ -698,9 +710,8 @@ async def add_other_document(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during file upload and metadata saving: {str(e)}")
 
-# 기타 산출물을 프론트로 전송하는 기능 필요
       
-@router.post("/output/otherdoc_edit_path") # 실제로 사용하게 될지는 의문?
+@router.post("/output/otherdoc_edit_path")
 async def edit_otherdoc_path(file_unique_id: int = Form(...), new_file_path: str = Form(...)):
     """
     기타 산출물 경로 수정 API
@@ -752,12 +763,12 @@ async def fetch_all_otherdoc(pid: int = Form(...)):
 
 
 @router.post("/output/otherdoc_fetch_path") # 사용할지 의문
-async def fetch_all_otherdoc(file_unique_id: int = Form(...)):
+async def fetch_all_otherdoc(payload: OtherDocDownloadPayload):
     """
     기타 산출물 경로 조회 API
     """
     try:
-        documents = output_DB.fetch_file_path(file_unique_id)
+        documents = output_DB.fetch_file_path(payload.file_no)
         return {"RESULT_CODE": 200, "RESULT_MSG": "Other Documents fetched successfully", "PAYLOADS": documents}
     except Exception as e:
         print(f"Error [fetch_file_path]: {e}")
@@ -765,12 +776,12 @@ async def fetch_all_otherdoc(file_unique_id: int = Form(...)):
 
 
 @router.post("/output/otherdoc_delete")
-async def delete_other_document(file_unique_id: int = Form(...)):
+async def delete_other_document(payload: OtherDocDownloadPayload):
     """
     기타 산출물  삭제 API
     """
     try:
-        result = output_DB.delete_other_document(file_unique_id)
+        result = output_DB.delete_other_document(payload.file_no)
         if result:
             return {"RESULT_CODE": 200, "RESULT_MSG": "Other document deleted successfully"}
         else:
@@ -779,7 +790,99 @@ async def delete_other_document(file_unique_id: int = Form(...)):
         print(f"Error [delete_reqspec]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting other document: {e}")
 
-@router.post("/output/download")
-async def download_file(payload: DownloadPayload):
-    """파일 다운로드 API"""
-    return {"구현 예정"}
+
+@router.post("/output/otherdoc_download")
+async def api_otherdoc_download(payload: OtherDocDownloadPayload):
+    """
+        API 서버가 Storage 서버에서 파일을 복사해 프론트로 전송
+        다운로드 흐름
+        1. Next.JS에서 file_no를 인자로 API Server에 요청
+        2. API Server에서는 해당 file_no 인자를 이용해서 다운로드하고자 하는 파일의 이름(file_name)과 경로(file_path)를 db에서 확인
+        3. 확인한 경로를 Storage Server에 인자로 전달
+        4. Storage Server에서 해당 경로에 있는 파일을 form 데이터로 다시 API Server에 전달
+        5. API Server에서 form 데이터를 받으면 그것을 /data/tmp에 저장하되, 파일 이름은 db에서 확인한 파일 이름을 사용
+        6. 저장한 파일을 Next.JS에 form 형태로 전달
+    """
+    temp_file_path = None  # 파일 삭제를 위해 finally에서 접근하기 위한 변수
+
+    try:
+        # 1. DB에서 파일 정보 조회
+        logging.info(f"Fetching file info from DB for file_no: {payload.file_no}")
+        file_info = output_DB.fetch_other_documents(payload.file_no)
+
+        if not file_info:
+            logging.error(f"File not found in DB for file_no: {payload.file_no}")
+            raise HTTPException(status_code=404, detail="File not found in database")
+
+        file_path = file_info['file_path']
+        file_name = file_info['file_name']
+        logging.info(f"File info retrieved: {file_name} at {file_path}")
+
+        # 2. Storage 서버에서 파일 요청
+        logging.info(f"Requesting file from Storage Server: {file_path}")
+        try:
+            response = requests.post(
+                "http://192.168.50.84:10080/api/output/otherdoc_download",
+                data={"file_path": file_path},
+                # headers={"Authorization": STORAGE_API_KEY},
+                stream=True
+            )
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to request file from storage server: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Request to storage server failed: {str(e)}")
+
+        if response.status_code != 200:
+            logging.error(f"Storage server response error: {response.status_code} - {response.text}")
+            raise HTTPException(status_code=500, detail=f"Failed to download file: {response.text}")
+
+        # 3. 파일을 /data/tmp에 저장
+        logging.info(f"Saving file to temporary directory: {TEMP_DOWNLOAD_DIR}")
+        temp_file_path = os.path.join(TEMP_DOWNLOAD_DIR, file_name)
+
+        try:
+            with open(temp_file_path, "wb") as f:
+                shutil.copyfileobj(response.raw, f)
+            logging.info(f"File saved to {temp_file_path}")
+        except Exception as e:
+            logging.error(f"Failed to save file to {temp_file_path}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"File save error: {str(e)}")
+
+        # 4. Next.js에 파일 form 데이터로 전송
+        logging.info(f"Sending file {file_name} to Next.js")
+        try:
+            form_data = {
+                "file": (file_name, open(temp_file_path, "rb"), "application/octet-stream"),
+                "file_name": file_name
+            }
+            response = requests.post(
+                "http://192.168.50.84:90/api/file_receive",
+                files=form_data
+            )
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to send file to frontend: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
+
+        if response.status_code != 200:
+            logging.error(f"Frontend server response error: {response.status_code} - {response.text}")
+            raise HTTPException(status_code=500, detail="Failed to send file to frontend")
+
+        logging.info(f"File {file_name} successfully transferred to frontend")
+
+        return {"RESULT_CODE": 200, "RESULT_MSG": "File transferred successfully"}
+
+    except HTTPException as e:
+        logging.error(f"HTTP Exception occurred: {str(e)}")
+        raise e
+
+    except Exception as e:
+        logging.error(f"Unexpected error during file download process: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    # finally:
+    #     # 5. 전송 후 임시 파일 삭제
+    #     if temp_file_path and os.path.exists(temp_file_path):
+    #         try:
+    #             os.remove(temp_file_path)
+    #             logging.info(f"Temporary file deleted: {temp_file_path}")
+    #         except Exception as e:
+    #             logging.error(f"Failed to delete temporary file {temp_file_path}: {str(e)}")
