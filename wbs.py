@@ -5,168 +5,56 @@
    생성자   : 김창환                                                         
                                                                               
    생성일   : 2024/11/24                                                       
-   업데이트 : 2024/11/26                                                       
+   업데이트 : 2025/01/04                                                       
                                                                               
    설명     : WBS 관련 엔드포인트 정의
 """
 
+"""
+1. 프론트엔드 (Next.JS)에서 먼저 특정 프로젝트의 WBS를 조회한다. (PID 기준)
+2. 조회해서 해당 프로젝트의 모든 WBS 정보를 불러온 뒤에 프론트에서 사용자가 수정을 한다.
+3. 사용자가 저장을 누르면 먼저 DB에 저장돼있던 기존의 WBS 데이터를 전부 제거하고 (이때, 해당 PID 값을 가진 WBS 열만 삭제), 수정된 정보를 새로 저장
+"""
+
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import sys, os
 
-sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
+sys.path.append(os.path.abspath('/data/Database Project'))
 import wbs_DB
 
 router = APIRouter()
 
 # Pydantic 모델 정의
-class WBSAddPayload(BaseModel):
-    group1: str
-    group2: str
-    group3: str
-    group4: str
-    work: str
-    output_file: str
-    manager: str
-    note: str
-    ratio: float
-    start_date: str
-    end_date: str
-    group1no: int
-    group2no: int
-    group3no: int
-    group4no: int
-    pid: int
-
-class WBSMultipleAddPayload(BaseModel):
+class WBSUpdatePayload(BaseModel):
     wbs_data: list  # WBS 데이터를 담은 이차원 배열
+    pid: int  # 프로젝트 ID
+
+class WBSPayload(BaseModel):
     pid: int
 
-class WBSEditPayload(BaseModel):
-    progress_no: int
-    group1: str
-    group2: str
-    group3: str
-    group4: str
-    work: str
-    output_file: str
-    manager: str
-    note: str
-    ratio: float
-    start_date: str
-    end_date: str
-    group1no: int
-    group2no: int
-    group3no: int
-    group4no: int
-
-class WBSDeletePayload(BaseModel):
-    progress_no: int
-
-class WBSDeleteAllPayload(BaseModel):
-    pid: int
-
-class WBSFetchPayload(BaseModel):
-    pid: int
-
-# 엔드포인트 정의
-@router.post("/wbs/add_one")
-async def add_one_wbs(payload: WBSAddPayload):
+# 기존 WBS 삭제 및 새로 추가하는 엔드포인트
+@router.post("/wbs/update")
+async def batch_update_wbs(payload: WBSUpdatePayload):
     try:
-        result = wbs_DB.add_one_wbs(
-            group1=payload.group1,
-            group2=payload.group2,
-            group3=payload.group3,
-            group4=payload.group4,
-            work=payload.work,
-            output_file=payload.output_file,
-            manager=payload.manager,
-            note=payload.note,
-            ratio=payload.ratio,
-            start_date=payload.start_date,
-            end_date=payload.end_date,
-            group1no=payload.group1no,
-            group2no=payload.group2no,
-            group3no=payload.group3no,
-            group4no=payload.group4no,
-            pid=payload.pid,
-        )
-        if result:
-            return {"RESULT_CODE": 200, "RESULT_MSG": "WBS item added successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to add WBS item")
+        # Step 1: 기존 WBS 데이터 삭제
+        delete_result = wbs_DB.delete_all_wbs(payload.pid)
+        if delete_result != True:
+            raise HTTPException(status_code=500, detail=f"Failed to delete existing WBS data. Error: {delete_result}")
+        
+        # Step 2: 새로운 WBS 데이터 추가
+        add_result = wbs_DB.add_multiple_wbs(payload.wbs_data, payload.pid)
+        if add_result != True:
+            raise HTTPException(status_code=500, detail=f"Failed to add new WBS data. Error: {add_result}")
+        
+        return {"RESULT_CODE": 200, "RESULT_MSG": "WBS batch update successful"}
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error adding WBS item: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during WBS batch update: {str(e)}")
 
-
-@router.post("/wbs/add_multiple")
-async def add_multiple_wbs(payload: WBSMultipleAddPayload):
-    try:
-        result = wbs_DB.add_multiple_wbs(payload.wbs_data, payload.pid)
-        if result:
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Multiple WBS items added successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to add multiple WBS items")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error adding multiple WBS items: {str(e)}")
-
-
-@router.post("/wbs/edit")
-async def edit_one_wbs(payload: WBSEditPayload):
-    try:
-        result = wbs_DB.edit_one_wbs(
-            group1=payload.group1,
-            group2=payload.group2,
-            group3=payload.group3,
-            group4=payload.group4,
-            work=payload.work,
-            output_file=payload.output_file,
-            manager=payload.manager,
-            note=payload.note,
-            ratio=payload.ratio,
-            start_date=payload.start_date,
-            end_date=payload.end_date,
-            group1no=payload.group1no,
-            group2no=payload.group2no,
-            group3no=payload.group3no,
-            group4no=payload.group4no,
-            progress_no=payload.progress_no,
-        )
-        if result:
-            return {"RESULT_CODE": 200, "RESULT_MSG": "WBS item updated successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to update WBS item")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating WBS item: {str(e)}")
-
-
-@router.post("/wbs/delete_one")
-async def delete_one_wbs(payload: WBSDeletePayload):
-    try:
-        result = wbs_DB.delete_one_wbs(payload.progress_no)
-        if result:
-            return {"RESULT_CODE": 200, "RESULT_MSG": "WBS item deleted successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to delete WBS item")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting WBS item: {str(e)}")
-
-
-@router.post("/wbs/delete_all")
-async def delete_all_wbs(payload: WBSDeleteAllPayload):
-    try:
-        result = wbs_DB.delete_all_wbs(payload.pid)
-        if result:
-            return {"RESULT_CODE": 200, "RESULT_MSG": "All WBS items deleted successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to delete all WBS items")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error deleting all WBS items: {str(e)}")
-
-
+# 특정 프로젝트의 WBS 항목을 조회하는 엔드포인트
 @router.post("/wbs/fetch_all")
-async def fetch_all_wbs(payload: WBSFetchPayload):
+async def fetch_all_wbs(payload: WBSPayload):
     try:
         wbs_items = wbs_DB.fetch_all_wbs(payload.pid)
         if wbs_items:
@@ -175,3 +63,15 @@ async def fetch_all_wbs(payload: WBSFetchPayload):
             return {"RESULT_CODE": 404, "RESULT_MSG": "No WBS items found"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching WBS items: {str(e)}")
+
+# 특정 프로젝트의 WBS 항목을 모두 삭제하는 엔드포인트
+@router.post("/wbs/delete_all")
+async def delete_all_wbs(payload: WBSPayload):
+    try:
+        delete_result = wbs_DB.delete_all_wbs(payload.pid)
+        if delete_result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "All WBS items deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="No WBS items found to delete")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting all WBS items: {str(e)}")
