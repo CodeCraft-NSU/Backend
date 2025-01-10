@@ -27,6 +27,7 @@ router = APIRouter()
       2. Storage Server로부터 MS Word (docx, doc, ...) 파일을 받아와 내용을 파싱한다.
       3. 위 두 정보를 가공한 뒤 ChatGPT에 정보를 전달한다.
       4. 필요에 따라 추가적으로 프롬프트를 전달한다.
+      5. ChatGPT에게 받은 응답을 프론트엔드에 전달한다.
 """
 
 class llm_payload(BaseModel):

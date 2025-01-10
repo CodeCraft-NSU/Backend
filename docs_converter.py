@@ -98,7 +98,7 @@ def process_meeting_minutes(doc_s_no):
                     replace_placeholder_in_cell(cell, placeholder, "")
 
     # 문서 저장
-    output_path = f"/data/Backend Project/temp/회의록_{doc_s_no}.docx"
+    output_path = f"temp/회의록_{doc_s_no}.docx"
     doc.save(output_path)
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!"}
@@ -149,7 +149,7 @@ def process_summary(doc_s_no):
                 replace_placeholder_in_cell(cell, "{f10}", summary_data.get("doc_s_outcomes", ""))
 
     # 문서 저장
-    output_path = f"/data/Backend Project/temp/개요서_{doc_s_no}.docx"
+    output_path = f"temp/개요서_{doc_s_no}.docx"
     doc.save(output_path)
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!"}
@@ -193,7 +193,7 @@ def process_reqspec(doc_r_no):
     #     paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
 
     # 문서 저장
-    output_path = f"/data/Backend Project/temp/요구사항_{doc_r_no}.docx"
+    output_path = f"temp/요구사항_{doc_r_no}.docx"
     doc.save(output_path)
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!"}
@@ -241,7 +241,7 @@ def process_testcase(doc_t_no):
                 )
 
     # 문서 저장
-    output_path = f"/data/Backend Project/temp/테스트케이스_{doc_t_no}.docx"
+    output_path = f"temp/테스트케이스_{doc_t_no}.docx"
     doc.save(output_path)
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!", "OUTPUT_PATH": output_path}
@@ -292,7 +292,7 @@ def process_report(doc_rep_no):
                     replace_placeholder_in_cell(cell, f"{{f{i}}}", "")
 
     # 문서 저장
-    output_path = f"/data/Backend Project/temp/보고서_{doc_rep_no}.docx"
+    output_path = f"temp/보고서_{doc_rep_no}.docx"
     doc.save(output_path)
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!", "OUTPUT_PATH": output_path}

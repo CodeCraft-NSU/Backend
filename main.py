@@ -28,7 +28,6 @@ from account import router as account_router
 from project import router as project_router
 from task import router as task_router
 from output import router as output_router
-from upload import router as upload_router
 from grade import router as grade_router
 from wbs import router as wbs_router
 from llm import router as llm_router
@@ -114,7 +113,6 @@ app.include_router(account_router, prefix="/api")
 app.include_router(project_router, prefix="/api")
 app.include_router(task_router, prefix="/api")
 app.include_router(output_router, prefix="/api")
-app.include_router(upload_router, prefix="/api")
 app.include_router(grade_router, prefix="/api")
 app.include_router(wbs_router, prefix="/api")
 app.include_router(llm_router, prefix="/api")
