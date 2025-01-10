@@ -13,10 +13,11 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import sys, os
+from docx import Document
+import sys, os, re
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
-import project_DB
+import project_DB, output_DB
 
 router = APIRouter()
 
@@ -30,18 +31,30 @@ router = APIRouter()
       5. ChatGPT에게 받은 응답을 프론트엔드에 전달한다.
 """
 
+# 프로젝트 종료 일까지 100일 이하로 남았다면 수능처럼 디데이 알려주는 기능 만들기?
+
 class llm_payload(BaseModel):
    pid: int
 
 def db_data_collect(pid):
-   return {project_DB.fetch_project_for_LLM(payload.pid)}
+   return project_DB.fetch_project_for_LLM(pid)
 
-def other_data_collect(pid):
-   return {}
+def output_data_collect(pid):
+   data = output_DB.fetch_all_other_documents(pid)
+   result = analysis_output(data)
+   return result
 
-def analysis_msword():
-   return {}
+def analysis_output(data):
+   print(data)
+   # 개쩌는 문서 파싱 기능 구현 #
+   return result
+
+def interact_gpt():
+   # ChatGPT와 세션을 맺는 기능 구현
+   return "Bye!"
 
 @router.post("/llm/init")
-async def llm_data_collect(payload: llm_payload):
-   return {}
+async def api_llm_init(payload: llm_payload):
+   db_data = db_data_collect(payload.pid)
+   output_data = output_data_collect(payload.pid)
+   return "Hi!"
