@@ -34,6 +34,7 @@ router = APIRouter()
 # 프로젝트 종료 일까지 100일 이하로 남았다면 수능처럼 디데이 알려주는 기능 만들기?
 
 class keypayload(BaseModel):
+   pid: int
    api_key: str
 
 class llm_payload(BaseModel):
@@ -61,7 +62,9 @@ def interact_gpt():
 
 @router.post("/llm/add_key")
 async def api_add_key(payload: keypayload):
-   return {}
+   with open('llm_key.json', 'a') as f: llm_key = json.load(f)
+   add_data = {"pid": payload.pid, "api_key": payload.api_key}; llm_key.append(add_data)
+   with open('llm_key.json', 'w') as f: json.dump(llm_key, f, indent=4)
 
 @router.post("/llm/edit_key")
 async def api_edit_key(payload: keypayload):
