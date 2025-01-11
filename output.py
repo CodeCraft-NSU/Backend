@@ -21,8 +21,6 @@ sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project�
 import output_DB
 
 router = APIRouter()
-UPLOAD_DIR = "uploaded_files"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 class SummaryDocumentPayload(BaseModel):
     """프로젝트 개요서 간단본 모델"""
