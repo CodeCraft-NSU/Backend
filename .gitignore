@@ -1,4 +1,5 @@
 .env
+llm_key.json
 __pycache__/
 uploaded_files/
 temp/

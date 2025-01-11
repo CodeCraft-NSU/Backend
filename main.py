@@ -21,6 +21,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from fastapi import HTTPException
 from dotenv import load_dotenv
+from pathlib import Path
 import os
 
 # 라우터 추가 파트
@@ -41,6 +42,8 @@ app = FastAPI(debug=True)
 try: os.mkdir("doc_conv")
 except: pass
 try: os.mkdir("gpt")
+except: pass
+try: Path('llm_key.json').touch()
 except: pass
 
 load_dotenv()
