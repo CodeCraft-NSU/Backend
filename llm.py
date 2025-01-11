@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from docx import Document
-import sys, os, re, requests
+import sys, os, re, requests, json
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB, output_DB
@@ -62,13 +62,33 @@ def interact_gpt():
 
 @router.post("/llm/add_key")
 async def api_add_key(payload: keypayload):
-   with open('llm_key.json', 'a') as f: llm_key = json.load(f)
+   try:
+      with open('llm_key.json', 'r') as f: llm_key = json.load(f)
+   except: llm_key = []
    add_data = {"pid": payload.pid, "api_key": payload.api_key}; llm_key.append(add_data)
    with open('llm_key.json', 'w') as f: json.dump(llm_key, f, indent=4)
+   return {"RESULT_CODE": 200, "RESULT_MSG": f"API key for pid {payload.pid} added successfully"}
 
 @router.post("/llm/edit_key")
 async def api_edit_key(payload: keypayload):
-   return {}
+    try: 
+      with open('llm_key.json', 'r') as f: llm_key = json.load(f)
+    except FileNotFoundError:
+      raise HTTPException(status_code=404, detail="llm_key.json file not found")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="llm_key.json file is not valid JSON")
+    # pid 값을 기준으로 데이터 검색 및 업데이트
+    updated = False
+    for item in llm_key:
+        if item["pid"] == payload.pid:
+            item["api_key"] = payload.api_key
+            updated = True
+            break
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Key with pid {payload.pid} not found")
+    # 변경된 데이터를 파일에 저장
+    with open('llm_key.json', 'w') as f: json.dump(llm_key, f, indent=4)
+    return {"RESULT_CODE": 200, "RESULT_MSG": f"API key for pid {payload.pid} updated successfully"}
 
 ###########################################################
 
