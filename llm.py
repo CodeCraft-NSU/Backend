@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from docx import Document
+from openai import OpenAI
 import sys, os, re, requests, json
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
@@ -57,6 +58,16 @@ def interact_gpt():
    # ChatGPT와 세션을 맺는 기능 구현
    return "Bye!"
 
+def load_key(pid):
+    try:
+        with open('llm_key.json', 'r') as f: llm_key = json.load(f)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="llm_key.json file not found")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="llm_key.json file is not valid JSON")
+    for item in llm_key:
+        if item["pid"] == pid: return item["api_key"]
+    raise HTTPException(status_code=404, detail=f"Key with pid {pid} not found")
 
 # 팀장만 등록 및 수정 가능하게 프론트에서 먼저 권한 확인 필요 #
 
