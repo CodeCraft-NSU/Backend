@@ -19,3 +19,11 @@ sys.path.append(os.path.abspath('/data/Database Project'))  # Database Projectì™
 import permission_DB
 
 router = APIRouter()
+
+class PermissionPayload(BaseModel):
+    univ_id: int = None
+    pid: int = None
+
+@router.post("/pm/load")
+async def api_permission_load(payload: PermissionPayload):
+    return ""
