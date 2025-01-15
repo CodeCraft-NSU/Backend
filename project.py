@@ -19,6 +19,7 @@ import sys, os, requests
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
+import permission
 
 router = APIRouter()
 
@@ -132,14 +133,21 @@ async def api_project_init(payload: ProjectInit):
                 status_code=500,
                 detail=f"File system initialization failed for PUID: {PUID}. Project deleted successfully.",
             )
-        # 4. 프로젝트의 유저 할당
+        # 4. 프로젝트에 팀장 계정 추가
         adduser_result = project_DB.add_project_user(PUID, payload.univ_id, 1, "Project Leader")
         if not adduser_result: 
             raise HTTPException(
                 status_code=500,
                 detail=f"Add User to Project failed for PUID: {PUID}",
             )
-        # 5. 성공 응답 반환
+        # 5. 팀장 권한 추가
+        addleader_result = permission.api_add_leader_permission(PUID, payload.univ_id)
+        if not addleader_result: 
+            raise HTTPException(
+                status_code=500,
+                detail=f"Add leader permission to user failed for PUID: {PUID}",
+            )
+        # 6. 성공 응답 반환
         return {
             "RESULT_CODE": 200,
             "RESULT_MSG": "Project created successfully",
