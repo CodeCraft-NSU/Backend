@@ -855,7 +855,7 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
                     data=file,
                     headers={
                         "Content-Type": "application/octet-stream",
-                        "file-name": file_name.encode("utf-8").decode("utf-8")
+                        "file-name": file_name
                     }
                 )
 
@@ -874,11 +874,11 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
         logging.error(f"Unexpected error during file transfer: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
-    # finally:
-    #     # 5. 전송 후 임시 파일 삭제
-    #     if temp_file_path and os.path.exists(temp_file_path):
-    #         try:
-    #             os.remove(temp_file_path)
-    #             logging.info(f"Temporary file deleted: {temp_file_path}")
-    #         except Exception as e:
-    #             logging.error(f"Failed to delete temporary file {temp_file_path}: {str(e)}")
+    finally:
+        # 5. 전송 후 임시 파일 삭제
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+                logging.info(f"Temporary file deleted: {temp_file_path}")
+            except Exception as e:
+                logging.error(f"Failed to delete temporary file {temp_file_path}: {str(e)}")
