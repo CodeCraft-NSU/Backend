@@ -21,6 +21,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from fastapi import HTTPException
 from dotenv import load_dotenv
+from pathlib import Path
 import os
 
 # 라우터 추가 파트
@@ -28,15 +29,23 @@ from account import router as account_router
 from project import router as project_router
 from task import router as task_router
 from output import router as output_router
-from upload import router as upload_router
 from grade import router as grade_router
 from wbs import router as wbs_router
 from llm import router as llm_router
+from ccp import router as ccp_router
+from permission import router as permission_router
 from docs_converter import router as docs_router
 from test import router as test_router  # Frontend Axios에서 API 통신 테스트를 위한 라우터
 
 # Database Project와의 연동을 위해 각 Router에 sys.path 경로 정의 필요
 app = FastAPI(debug=True)
+
+try: os.mkdir("doc_conv")
+except: pass
+try: os.mkdir("gpt")
+except: pass
+try: Path('llm_key.json').touch()
+except: pass
 
 load_dotenv()
 API_KEY = os.getenv('API_KEY')
@@ -114,9 +123,10 @@ app.include_router(account_router, prefix="/api")
 app.include_router(project_router, prefix="/api")
 app.include_router(task_router, prefix="/api")
 app.include_router(output_router, prefix="/api")
-app.include_router(upload_router, prefix="/api")
 app.include_router(grade_router, prefix="/api")
 app.include_router(wbs_router, prefix="/api")
 app.include_router(llm_router, prefix="/api")
+app.include_router(permission_router, prefix="/api")
 app.include_router(docs_router, prefix="/api")
+app.include_router(ccp_router, prefix="/api")
 app.include_router(test_router, prefix="/api")  # 정식 Release 전 Delete 필요

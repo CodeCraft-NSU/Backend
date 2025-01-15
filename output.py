@@ -5,7 +5,7 @@
     생성자   : 김창환
 
     생성일   : 2024/10/20
-    업데이트 : 2024/11/24
+    업데이트 : 2025/01/11
 
     설명     : 산출물의 생성, 수정, 조회, 삭제, 업로드를 위한 API 엔드포인트 정의
 """
@@ -15,14 +15,13 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from datetime import datetime
+from urllib.parse import quote
 import sys, os, random, requests, json, logging, shutil, subprocess
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import output_DB
 
 router = APIRouter()
-UPLOAD_DIR = "uploaded_files"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 class SummaryDocumentPayload(BaseModel):
     """프로젝트 개요서 간단본 모델"""
@@ -848,34 +847,32 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
             raise HTTPException(status_code=500, detail=f"File save error: {str(e)}")
 
         # 4. Next.js에 파일 form 데이터로 전송
-        logging.info(f"Sending file {file_name} to Next.js")
         try:
-            form_data = {
-                "file": (file_name, open(temp_file_path, "rb"), "application/octet-stream"),
-                "file_name": file_name
-            }
-            response = requests.post(
-                "http://192.168.50.84:90/api/file_receive",
-                files=form_data
-            )
+            logging.info(f"Sending file {file_name} to Next.js using Raw Binary")
+
+            with open(temp_file_path, "rb") as file:
+                response = requests.post(
+                    "http://192.168.50.84:90/api/file_receive",
+                    data=file,
+                    headers={
+                        "Content-Type": "application/octet-stream",
+                        "file-name": quote(file_name)
+                    }
+                )
+
+            if response.status_code != 200:
+                logging.error(f"Frontend server response error: {response.status_code} - {response.text}")
+                raise HTTPException(status_code=500, detail="Failed to send file to frontend")
+
+            logging.info(f"File {file_name} successfully transferred to frontend")
+            return {"RESULT_CODE": 200, "RESULT_MSG": "File transferred successfully"}
+
         except requests.exceptions.RequestException as e:
             logging.error(f"Failed to send file to frontend: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
 
-        if response.status_code != 200:
-            logging.error(f"Frontend server response error: {response.status_code} - {response.text}")
-            raise HTTPException(status_code=500, detail="Failed to send file to frontend")
-
-        logging.info(f"File {file_name} successfully transferred to frontend")
-
-        return {"RESULT_CODE": 200, "RESULT_MSG": "File transferred successfully"}
-
-    except HTTPException as e:
-        logging.error(f"HTTP Exception occurred: {str(e)}")
-        raise e
-
     except Exception as e:
-        logging.error(f"Unexpected error during file download process: {str(e)}")
+        logging.error(f"Unexpected error during file transfer: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
     finally:
