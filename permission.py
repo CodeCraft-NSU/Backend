@@ -21,9 +21,45 @@ import permission_DB
 router = APIRouter()
 
 class PermissionPayload(BaseModel):
-    univ_id: int = None
-    pid: int = None
+    pid: int
+    univ_id: int
 
-@router.post("/pm/load")
-async def api_permission_load(payload: PermissionPayload):
+class PMListPayload(BaseModel):
+    pid: int
+    univ_id: int = None
+
+
+def api_add_leader_permission(pid, univ_id):
+    return ""
+
+@router.post("/pm/add_ro")
+async def api_add_ro_permission(payload: PermissionPayload):
+    return {}
+
+@router.post("/pm/add_ro2")
+async def api_add_ro2_permission(payload: PermissionPayload):
+    return {}
+
+@router.post("/pm/add_default")
+async def api_add_default_permission(payload: PermissionPayload):
+    return ""
+
+@router.post("/pm/add_manual")
+async def api_add_manual_permission(payload: PMListPayload):
+    return ""
+
+@router.post("/pm/edit_manual")
+async def api_edit_manual_permission(payload: PMListPayload):
+    return ""
+
+@router.post("/pm/load_one")
+async def api_load_pm_one(payload: PermissionPayload):
+    return ""
+
+@router.post("/pm/load_all")
+async def api_load_pm_all(payload: PermissionPayload):
+    return ""
+
+@router.post("/pm/check_leader")
+async def api_check_leader(payload: PermissionPayload):
     return ""
