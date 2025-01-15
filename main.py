@@ -33,6 +33,7 @@ from grade import router as grade_router
 from wbs import router as wbs_router
 from llm import router as llm_router
 from ccp import router as ccp_router
+from permission import router as permission_router
 from docs_converter import router as docs_router
 from test import router as test_router  # Frontend Axios에서 API 통신 테스트를 위한 라우터
 
@@ -125,6 +126,7 @@ app.include_router(output_router, prefix="/api")
 app.include_router(grade_router, prefix="/api")
 app.include_router(wbs_router, prefix="/api")
 app.include_router(llm_router, prefix="/api")
+app.include_router(permission_router, prefix="/api")
 app.include_router(docs_router, prefix="/api")
 app.include_router(ccp_router, prefix="/api")
 app.include_router(test_router, prefix="/api")  # 정식 Release 전 Delete 필요
