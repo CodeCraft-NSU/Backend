@@ -5,7 +5,7 @@
     생성자   : 김창환
 
     생성일   : 2024/10/20
-    업데이트 : 2025/01/11
+    업데이트 : 2025/01/21
 
     설명     : 산출물의 생성, 수정, 조회, 삭제, 업로드를 위한 API 엔드포인트 정의
 """
@@ -883,3 +883,13 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
                 logging.info(f"Temporary file deleted: {temp_file_path}")
             except Exception as e:
                 logging.error(f"Failed to delete temporary file {temp_file_path}: {str(e)}")
+
+
+@router.post("/output/load_type")
+async def api_otherdoc_type(payload: OtherDocumentPayload):
+    try:
+        result = output_DB.fetch_document_type(payload.file_unique_id)
+        return {"RESULT_CODE": 200, "RESULT_MSG": result}
+    except HTTPException as e:
+        return {"RESULT_CODE": 500, "RESULT_MSG": e.detail}
+        raise e
