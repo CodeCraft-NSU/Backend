@@ -75,3 +75,13 @@ async def delete_all_wbs(payload: WBSPayload):
             raise HTTPException(status_code=404, detail="No WBS items found to delete")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting all WBS items: {str(e)}")
+
+# WBS의 진척률 평균을 조회하는 엔드포인트
+@router.post("/wbs/load_ratio")
+async def load_ratio(payload: WBSPayload):
+    try:
+        result = wbs_DB.fetch_wbs_ratio(payload.pid)
+        return {"RESULT_CODE": 200, "RESULT_MSG": result}
+    except HTTPException as e:
+        return {"RESULT_CODE": 500, "RESULT_MSG": e.detail}
+        raise e
