@@ -800,7 +800,7 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
         3. 확인한 경로를 Storage Server에 인자로 전달
         4. Storage Server에서 해당 경로에 있는 파일을 form 데이터로 다시 API Server에 전달
         5. API Server에서 form 데이터를 받으면 그것을 /data/tmp에 저장하되, 파일 이름은 db에서 확인한 파일 이름을 사용
-        6. 저장한 파일을 Next.JS에 form 형태로 전달
+        6. 저장한 파일을 Next.JS에 post로 전달하며, 해당 파일의 원본 이름은 헤더에 저장
     """
     temp_file_path = None  # 파일 삭제를 위해 finally에서 접근하기 위한 변수
 

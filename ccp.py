@@ -21,7 +21,13 @@ import csv_DB
 
 class ccp_payload(BaseModel):
     pid: int = None
-    s_no: int = None
+    univ_id: int = None
+
+def encrypt_ccp_file():
+    return ""
+
+def decrypt_ccp_file():
+    return ""
 
 router.post("/ccp/import")
 async def api_project_import(payload: ccp_payload):

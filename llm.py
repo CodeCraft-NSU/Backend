@@ -101,6 +101,16 @@ async def api_add_key(payload: keypayload):
    with open('llm_key.json', 'w') as f: json.dump(llm_key, f, indent=4)
    return {"RESULT_CODE": 200, "RESULT_MSG": f"API key for pid {payload.pid} added successfully"}
 
+@router.post("/llm/load_key")
+async def api_load_key(payload: llm_payload):
+    try:
+        key = load_key(payload.pid)
+        return {"RESULT_CODE": 200, "RESULT_MSG": key}
+    except HTTPException as e:
+        if e.status_code == 404:
+            return {"RESULT_CODE": 500, "RESULT_MSG": e.detail}
+        raise e
+
 @router.post("/llm/edit_key")
 async def api_edit_key(payload: keypayload):
     try: 
