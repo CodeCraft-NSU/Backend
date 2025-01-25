@@ -167,7 +167,7 @@ async def api_project_init(payload: ProjectInit):
             )
         
         logger.debug("Step 5: Adding leader permissions")
-        addleader_result = permission.api_add_leader_permission(PUID, payload.univ_id)
+        addleader_result = permission.add_leader_permission(PUID, payload.univ_id)
         if not addleader_result:
             logger.error(f"Add leader permission failed for PUID: {PUID}")
             raise HTTPException(

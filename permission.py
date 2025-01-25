@@ -38,7 +38,7 @@ class PMListPayload(BaseModel):
     task: int
     llm: int
 
-def api_add_leader_permission(pid, univ_id):
+def add_leader_permission(pid, univ_id):
     result = permission_DB.add_leader_permission(pid, univ_id)
     if isinstance(result, Exception):
         print(f"Error occurred: {result}")
