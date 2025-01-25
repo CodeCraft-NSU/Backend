@@ -177,7 +177,7 @@ async def api_project_init(payload: ProjectInit):
             )
 
         logger.debug("Step 6: Init WBS data")
-        wbs_data = ["", "", "", "", "", "", "INITWBS", "", 0, "2025-01-01", "2025-01-10", 1, 0, 0, 0]
+        wbs_data = [["", "", "", "", "", "", "INITWBS", "", 0, "2025-01-01", "2025-01-10", 1, 0, 0, 0]]
         initwbs_result = wbs.init_wbs(wbs_data, PUID)
         if not addleader_result:
             logger.error(f"Add leader permission failed for PUID: {PUID}")
