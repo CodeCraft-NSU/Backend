@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import random  # gen_project_uid 함수에서 사용
 import sys, os, requests
+import logging
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
@@ -91,6 +92,19 @@ class ProjectCheckUser(BaseModel):
 class Wizard(BaseModel):
     pid: int
 
+
+# 로거 초기화
+logging.basicConfig(
+    level=logging.DEBUG,  # 디버깅 수준 설정
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # 로그 메시지 포맷
+    handlers=[
+        logging.StreamHandler(),  # 콘솔 출력 핸들러
+        logging.FileHandler("app.log", encoding="utf-8"),  # 파일 출력 핸들러
+    ],
+)
+
+# logger 객체 생성
+logger = logging.getLogger("project_logger")  # 로거 이름 설정
 
 # 유틸리티 함수
 def gen_project_uid():
