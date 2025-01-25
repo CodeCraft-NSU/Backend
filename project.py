@@ -115,38 +115,23 @@ def init_file_system(PUID):
 async def api_project_init(payload: ProjectInit):
     """프로젝트 생성 및 초기화"""
     try:
-        # 1. 프로젝트 고유 ID 생성
-        try:
-            PUID = gen_project_uid()
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to generate Project UID: {str(e)}",
-            )
+        logger.debug("Step 1: Generating Project UID")
+        PUID = gen_project_uid()
+        logger.debug(f"Generated PUID: {PUID}")
         
-        # 2. 프로젝트 데이터베이스 초기화
-        try:
-            db_result = project_DB.init_project(payload, PUID)
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database initialization failed for PUID: {PUID}. Error: {str(e)}",
-            )
+        logger.debug("Step 2: Initializing project in the database")
+        db_result = project_DB.init_project(payload, PUID)
         if not db_result:
+            logger.error(f"Database initialization failed for PUID: {PUID}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Database initialization returned False for PUID: {PUID}",
             )
         
-        # 3. 파일 시스템 초기화
-        try:
-            file_result = init_file_system(PUID)
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"File system initialization failed for PUID: {PUID}. Error: {str(e)}",
-            )
+        logger.debug("Step 3: Initializing file system")
+        file_result = init_file_system(PUID)
         if not file_result:
+            logger.error(f"File system initialization failed for PUID: {PUID}")
             delete_result = project_DB.delete_project(PUID)
             if not delete_result:
                 raise HTTPException(
@@ -158,49 +143,40 @@ async def api_project_init(payload: ProjectInit):
                 detail=f"File system initialization failed for PUID: {PUID}. Project deleted successfully.",
             )
         
-        # 4. 프로젝트에 팀장 계정 추가
-        try:
-            adduser_result = project_DB.add_project_user(PUID, payload.univ_id, 1, "Project Leader")
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to add Project Leader for PUID: {PUID}. Error: {str(e)}",
-            )
+        logger.debug("Step 4: Adding project leader to database")
+        adduser_result = project_DB.add_project_user(PUID, payload.univ_id, 1, "Project Leader")
         if not adduser_result:
+            logger.error(f"Add User to Project failed for PUID: {PUID}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Add User to Project failed for PUID: {PUID}",
             )
         
-        # 5. 팀장 권한 추가
-        try:
-            addleader_result = permission.api_add_leader_permission(PUID, payload.univ_id)
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to add leader permissions for PUID: {PUID}. Error: {str(e)}",
-            )
+        logger.debug("Step 5: Adding leader permissions")
+        addleader_result = permission.api_add_leader_permission(PUID, payload.univ_id)
         if not addleader_result:
+            logger.error(f"Add leader permission failed for PUID: {PUID}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Add leader permission to user failed for PUID: {PUID}",
             )
         
-        # 6. 성공 응답 반환
+        logger.info(f"Project {PUID} created successfully")
         return {
             "RESULT_CODE": 200,
             "RESULT_MSG": "Project created successfully",
             "PAYLOADS": {"PUID": PUID},
         }
     except HTTPException as http_exc:
-        # HTTPException은 그대로 전달
+        logger.error(f"HTTPException occurred: {http_exc.detail}")
         raise http_exc
     except Exception as e:
-        # 알 수 없는 예외 처리
+        logger.error(f"Unexpected error occurred: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Unexpected error during project creation: {str(e)}",
         )
+
 
 @router.post("/project/edit")
 async def api_project_edit(payload: ProjectEdit):
