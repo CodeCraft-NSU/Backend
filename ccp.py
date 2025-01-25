@@ -32,6 +32,9 @@ def handle_db_result(result):
         return False
     return result
 
+def create_project_info():
+    return
+
 async def pull_storage_server(pid: int, output_path: str):
     b_server_url = f"http://192.168.50.84:10080/api/ccp/push"
     async with httpx.AsyncClient() as client:
@@ -116,9 +119,9 @@ async def api_project_export(payload: ccp_payload):
 
     logging.info(f"Initializing folder /data/ccp/{payload.pid}")
     try:
-        os.mkdir(f'/data/ccp/{payload.pid}')
-        os.mkdir(f'/data/ccp/{payload.pid}/DATABASE')
-        os.mkdir(f'/data/ccp/{payload.pid}/OUTPUT')
+        os.makedirs(f'/data/ccp/{payload.pid}', exist_ok=True)
+        os.makedirs(f'/data/ccp/{payload.pid}/DATABASE', exist_ok=True)
+        os.makedirs(f'/data/ccp/{payload.pid}/OUTPUT', exist_ok=True)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to initialize folder: {str(e)}")
 
@@ -147,7 +150,13 @@ async def api_project_export(payload: ccp_payload):
     # 구현 중 #
 
     logging.info(f"Encrypting /data/ccp/{payload.pid} folder to /data/ccp/{payload.pid}.ccp")
-    # 구현 중 #
+    try:
+        encryption_result = encrypt_ccp_file(payload.pid)
+        if not encryption_result:
+            raise HTTPException(status_code=500, detail=f"Failed to encrypt project folder for pid {payload.pid}")
+    except Exception as e:
+        logging.error(f"Error occurred during encryption process for pid {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during encryption: {str(e)}")
 
     logging.info(f"Pushing /data/ccp/{payload.pid}.ccp file to Next.JS Server")
     # 구현 중 #
