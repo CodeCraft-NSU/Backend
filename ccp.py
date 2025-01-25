@@ -15,7 +15,7 @@ from cryptography.fernet import Fernet
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from urllib.parse import quote
-import os, sys, logging, shutil, tarfile, io, struct
+import os, sys, logging, shutil, tarfile, io, struct, httpx
 
 router = APIRouter()
 
@@ -31,6 +31,22 @@ def handle_db_result(result):
         print(f"Database error: {result}")
         return False
     return result
+
+async def pull_storage_server(pid: int, output_path: str):
+    b_server_url = f"http://192.168.50.84:10080/api/ccp/push"
+    async with httpx.AsyncClient() as client:
+        response = await client.post(b_server_url, params={"pid": pid})
+        if response.status_code == 200:
+            if not os.path.exists(output_path):
+                os.makedirs(output_path)
+            archive_path = os.path.join(output_path, f"{pid}_output.tar.gz")
+            with open(archive_path, 'wb') as f:
+                f.write(response.content)
+            with tarfile.open(archive_path, 'r:gz') as tar:
+                tar.extractall(path=output_path)
+            os.remove(archive_path)
+            return {"RESULT_CODE": 200, "RESULT_MSG": f"Files for project {pid} downloaded successfully."}
+        else: return {"RESULT_CODE": 500, "RESULT_MSG": f"Failed to download from storage server. Status code: {response.status_code}"}
 
 load_dotenv()
 
@@ -83,8 +99,7 @@ def encrypt_ccp_file(pid):
         return True
 
     except Exception as e:
-        # 오류 발생 시 로그 출력
-        print(f"Error occurred during encryption process for PID {pid}: {e}")
+        print(f"Error occurred during encryption process for pid {pid}: {e}")
         return False
 
 def decrypt_ccp_file(pid):
@@ -120,7 +135,13 @@ async def api_project_export(payload: ccp_payload):
     # 구현 중 #
 
     logging.info(f"Copying the OUTPUT files from Storage Server to /data/ccp/{payload.pid}/OUTPUT")
-    # 구현 중 #
+    try:
+        result = await pull_storage_server(payload.pid, f'/data/ccp/{payload.pid}/OUTPUT')
+        if result['RESULT_CODE'] != 200:
+            raise HTTPException(status_code=500, detail=result['RESULT_MSG'])
+    except Exception as e:
+        logging.error(f"Failed to download OUTPUT files from storage server: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to download OUTPUT files from storage server: {str(e)}")
 
     logging.info(f"Creating the Project_Info.json file to /data/ccp/{payload.pid}")
     # 구현 중 #
@@ -132,9 +153,9 @@ async def api_project_export(payload: ccp_payload):
     # 구현 중 #
 
     logging.info(f"Deleting /data/ccp/{payload.pid} folder")
-    try:
-        shutil.rmtree(f'/data/ccp/{payload.pid}')
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete folder: {str(e)}")
+    # try: 디버깅 용으로 임시 주석처리 (25.01.25)
+    #     shutil.rmtree(f'/data/ccp/{payload.pid}')
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=f"Failed to delete folder: {str(e)}")
 
     return {"RESULT_CODE": 200, "RESULT_MSG": f"Project Export Job for {payload.pid} has been completed successfully."}
