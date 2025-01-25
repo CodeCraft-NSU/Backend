@@ -106,7 +106,60 @@ def encrypt_ccp_file(pid):
         return False
 
 def decrypt_ccp_file(pid):
-    return ""
+    try:
+        encrypted_file_path = f'/data/tmp/{pid}.ccp'
+        
+        if not os.path.exists(encrypted_file_path):
+            raise FileNotFoundError(f"{encrypted_file_path} not found")
+
+        # 암호화된 파일 읽기
+        with open(encrypted_file_path, 'rb') as encrypted_file:
+            # 헤더 추출 (파일 개수 및 메타데이터)
+            header = encrypted_file.read(4)  # 파일 개수는 4바이트로 저장
+            num_files = struct.unpack('!I', header)[0]
+
+            # 각 파일에 대한 메타데이터 읽기
+            file_metadata = []
+            while num_files > 0:
+                # 파일 이름 길이 (4바이트)
+                file_name_length = struct.unpack('!I', encrypted_file.read(4))[0]
+                # 파일 이름 (UTF-8)
+                file_name = encrypted_file.read(file_name_length).decode('utf-8')
+                # 파일 크기 (4바이트)
+                file_size = struct.unpack('!I', encrypted_file.read(4))[0]
+
+                file_metadata.append({
+                    "file_name": file_name,
+                    "file_size": file_size
+                })
+                num_files -= 1
+
+            # 암호화된 데이터 읽기
+            encrypted_data = encrypted_file.read()
+
+        # 암호화된 데이터를 복호화
+        decrypted_data = cipher.decrypt(encrypted_data)
+
+        # 복호화된 데이터를 tar로 풀기
+        with tarfile.open(fileobj=io.BytesIO(decrypted_data), mode='r|') as tar:
+            # 파일을 추출할 디렉토리 생성
+            output_dir = f'/data/ccp/{pid}_extracted'
+            os.makedirs(output_dir, exist_ok=True)
+
+            # tar 파일에서 파일을 추출
+            for file_info in file_metadata:
+                file_name = file_info["file_name"]
+                file_path = os.path.join(output_dir, file_name)
+
+                # 파일 추출
+                tar.extract(file_name, path=output_dir)
+                print(f"Extracted: {file_path}")
+
+        return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {pid} successfully decrypted and extracted."}
+    
+    except Exception as e:
+        print(f"Error during decryption process for pid {pid}: {e}")
+        return {"RESULT_CODE": 500, "RESULT_MSG": f"Error during decryption: {e}"}
 
 @router.post("/ccp/import")
 async def api_project_import(payload: ccp_payload):
