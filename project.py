@@ -21,6 +21,7 @@ import logging
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
 import permission
+import wbs
 
 router = APIRouter()
 
