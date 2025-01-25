@@ -3,3 +3,4 @@ llm_key.json
 __pycache__/
 uploaded_files/
 doc_conv/
+gpt/

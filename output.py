@@ -846,7 +846,7 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
             logging.error(f"Failed to save file to {temp_file_path}: {str(e)}")
             raise HTTPException(status_code=500, detail=f"File save error: {str(e)}")
 
-        # 4. Next.js에 파일 form 데이터로 전송
+        # 4. Next.js에 파일 데이터 전송
         try:
             logging.info(f"Sending file {file_name} to Next.js using Raw Binary")
 
