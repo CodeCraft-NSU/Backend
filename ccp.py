@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from urllib.parse import quote
 import os, sys, logging, shutil, tarfile, io, struct, httpx
+import traceback
 
 router = APIRouter()
 
@@ -28,7 +29,7 @@ class ccp_payload(BaseModel):
 
 def handle_db_result(result):
     if isinstance(result, Exception):
-        print(f"Database error: {result}")
+        logging.error(f"Database error: {result}")
         return False
     return result
 
@@ -38,18 +39,24 @@ def create_project_info():
 async def pull_storage_server(pid: int, output_path: str):
     b_server_url = f"http://192.168.50.84:10080/api/ccp/push"
     async with httpx.AsyncClient() as client:
-        response = await client.post(b_server_url, params={"pid": pid})
-        if response.status_code == 200:
-            if not os.path.exists(output_path):
-                os.makedirs(output_path)
-            archive_path = os.path.join(output_path, f"{pid}_output.tar.gz")
-            with open(archive_path, 'wb') as f:
-                f.write(response.content)
-            with tarfile.open(archive_path, 'r:gz') as tar:
-                tar.extractall(path=output_path)
-            os.remove(archive_path)
-            return {"RESULT_CODE": 200, "RESULT_MSG": f"Files for project {pid} downloaded successfully."}
-        else: return {"RESULT_CODE": 500, "RESULT_MSG": f"Failed to download from storage server. Status code: {response.status_code}"}
+        try:
+            response = await client.post(b_server_url, params={"pid": pid})
+            if response.status_code == 200:
+                if not os.path.exists(output_path):
+                    os.makedirs(output_path)
+                archive_path = os.path.join(output_path, f"{pid}_output.tar.gz")
+                with open(archive_path, 'wb') as f:
+                    f.write(response.content)
+                with tarfile.open(archive_path, 'r:gz') as tar:
+                    tar.extractall(path=output_path)
+                os.remove(archive_path)
+                return {"RESULT_CODE": 200, "RESULT_MSG": f"Files for project {pid} downloaded successfully."}
+            else:
+                logging.error(f"Failed to download from storage server. Status code: {response.status_code}")
+                return {"RESULT_CODE": 500, "RESULT_MSG": f"Failed to download from storage server. Status code: {response.status_code}"}
+        except Exception as e:
+            logging.error(f"Error while pulling from storage server for project {pid}: {str(e)}")
+            return {"RESULT_CODE": 500, "RESULT_MSG": f"Error while pulling from storage server: {str(e)}"}
 
 load_dotenv()
 
@@ -102,69 +109,104 @@ def encrypt_ccp_file(pid):
         return True
 
     except Exception as e:
-        print(f"Error occurred during encryption process for pid {pid}: {e}")
+        logging.error(f"Error occurred during encryption process for pid {pid}: {e}")
         return False
 
 def decrypt_ccp_file(pid):
     try:
-        encrypted_file_path = f'/data/tmp/{pid}.ccp'
-        
-        if not os.path.exists(encrypted_file_path):
-            raise FileNotFoundError(f"{encrypted_file_path} not found")
+        input_file_path = f'/data/ccp/{pid}.ccp'
+        output_dir = f'/data/ccp/{pid}/'
 
-        # 암호화된 파일 읽기
-        with open(encrypted_file_path, 'rb') as encrypted_file:
-            # 헤더 추출 (파일 개수 및 메타데이터)
-            header = encrypted_file.read(4)  # 파일 개수는 4바이트로 저장
-            num_files = struct.unpack('!I', header)[0]
+        if not os.path.exists(input_file_path):
+            raise Exception(f"ccp file {input_file_path} does not exist")
 
-            # 각 파일에 대한 메타데이터 읽기
-            file_metadata = []
-            while num_files > 0:
-                # 파일 이름 길이 (4바이트)
-                file_name_length = struct.unpack('!I', encrypted_file.read(4))[0]
-                # 파일 이름 (UTF-8)
+        # 파일 열기
+        with open(input_file_path, 'rb') as encrypted_file:
+            # 헤더 읽기 (파일 개수 + 각 파일의 메타데이터)
+            header = encrypted_file.read(4)
+            if len(header) < 4:
+                raise Exception(f"Failed to read header, insufficient data. Read {len(header)} bytes")
+
+            num_files = struct.unpack('!I', header)[0]  # 파일 개수
+
+            # 디렉터리 생성
+            os.makedirs(output_dir, exist_ok=True)
+            os.makedirs(os.path.join(output_dir, 'DATABASE'), exist_ok=True)  # DATABASE 폴더 생성
+            os.makedirs(os.path.join(output_dir, 'OUTPUT'), exist_ok=True)  # OUTPUT 폴더 생성
+
+            # 각 파일의 메타데이터 읽기 및 복원
+            files_metadata = []
+            for _ in range(num_files):
+                # 파일 이름 길이 읽기
+                file_name_length_data = encrypted_file.read(4)
+                if len(file_name_length_data) < 4:
+                    raise Exception(f"Failed to read file name length, insufficient data. Read {len(file_name_length_data)} bytes")
+                file_name_length = struct.unpack('!I', file_name_length_data)[0]
+                
+                # 파일 이름 읽기
                 file_name = encrypted_file.read(file_name_length).decode('utf-8')
-                # 파일 크기 (4바이트)
-                file_size = struct.unpack('!I', encrypted_file.read(4))[0]
+                
+                # 파일 크기 읽기
+                file_size_data = encrypted_file.read(4)
+                if len(file_size_data) < 4:
+                    raise Exception(f"Failed to read file size, insufficient data. Read {len(file_size_data)} bytes")
+                file_size = struct.unpack('!I', file_size_data)[0]
 
-                file_metadata.append({
-                    "file_name": file_name,
-                    "file_size": file_size
-                })
-                num_files -= 1
+                files_metadata.append((file_name, file_size))
 
-            # 암호화된 데이터 읽기
+            # 남은 암호화된 데이터 읽기
             encrypted_data = encrypted_file.read()
 
-        # 암호화된 데이터를 복호화
-        decrypted_data = cipher.decrypt(encrypted_data)
+            # 복호화
+            decrypted_data = cipher.decrypt(encrypted_data)
 
-        # 복호화된 데이터를 tar로 풀기
-        with tarfile.open(fileobj=io.BytesIO(decrypted_data), mode='r|') as tar:
-            # 파일을 추출할 디렉토리 생성
-            output_dir = f'/data/ccp/{pid}_extracted'
-            os.makedirs(output_dir, exist_ok=True)
+            # 복호화된 데이터 저장
+            decrypted_tar_path = os.path.join(output_dir, 'ccp_decrypted.tar')
+            with open(decrypted_tar_path, 'wb') as decrypted_file:
+                decrypted_file.write(decrypted_data)
 
-            # tar 파일에서 파일을 추출
-            for file_info in file_metadata:
-                file_name = file_info["file_name"]
-                file_path = os.path.join(output_dir, file_name)
+            # 각 파일의 데이터를 복원
+            with open(decrypted_tar_path, 'rb') as decrypted_tar:
+                with tarfile.open(fileobj=decrypted_tar) as tar:
+                    # 타르 파일 내부의 폴더 구조를 제대로 복원하도록 설정
+                    for member in tar.getmembers():
+                        member_path = os.path.join(output_dir, member.name)  # 최종 경로
+                        
+                        # 'OUTPUT' 폴더 내부만 경로 복원
+                        if member.name.startswith('OUTPUT/'):
+                            member_path = os.path.join(output_dir, 'OUTPUT', os.path.relpath(member.name, 'OUTPUT'))
+                        elif member.name.startswith('DATABASE/'):
+                            member_path = os.path.join(output_dir, 'DATABASE', os.path.relpath(member.name, 'DATABASE'))
 
-                # 파일 추출
-                tar.extract(file_name, path=output_dir)
-                print(f"Extracted: {file_path}")
+                        # 디렉터리 생성 및 파일 추출
+                        if member.isdir():
+                            os.makedirs(member_path, exist_ok=True)
+                        else:
+                            # 파일 추출 전 존재하는지 체크하고, 필요한 디렉터리 생성
+                            os.makedirs(os.path.dirname(member_path), exist_ok=True)
+                            with open(member_path, 'wb') as f:
+                                f.write(tar.extractfile(member).read())
 
-        return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {pid} successfully decrypted and extracted."}
-    
+        return {"RESULT_CODE": 200, "RESULT_MSG": f"Decryption successful for project {pid}"}
+
     except Exception as e:
-        print(f"Error during decryption process for pid {pid}: {e}")
-        return {"RESULT_CODE": 500, "RESULT_MSG": f"Error during decryption: {e}"}
+        logging.error(f"Error during decryption process for pid {pid}: {str(e)}")
+        return {"RESULT_CODE": 500, "RESULT_MSG": f"Decryption failed: {str(e)}"}
 
 @router.post("/ccp/import")
 async def api_project_import(payload: ccp_payload):
     """프로젝트 불러오기"""
-    return {}
+    try:
+        logging.info(f"Attempting to decrypt project {payload.pid}.ccp file")
+        decryption_result = decrypt_ccp_file(payload.pid)
+        if decryption_result['RESULT_CODE'] == 200:
+            logging.info(f"Project {payload.pid} successfully decrypted and extracted.")
+        else:
+            raise HTTPException(status_code=500, detail=f"Decryption failed: {decryption_result['RESULT_MSG']}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
+    except Exception as e:
+        logging.error(f"Error occurred during project import: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during project import: {str(e)}")
 
 @router.post("/ccp/export")
 async def api_project_export(payload: ccp_payload):
@@ -176,19 +218,17 @@ async def api_project_export(payload: ccp_payload):
         os.makedirs(f'/data/ccp/{payload.pid}/DATABASE', exist_ok=True)
         os.makedirs(f'/data/ccp/{payload.pid}/OUTPUT', exist_ok=True)
     except Exception as e:
+        logging.error(f"Failed to initialize folder for project {payload.pid}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to initialize folder: {str(e)}")
 
     logging.info(f"Exporting the database to CSV files for project ID: {payload.pid}")
     try:
         result = csv_DB.export_csv(payload.pid)
     except Exception as e:
-        print(traceback.format_exc())
+        logging.error(f"Failed to export db: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to export db: {e}")
     if not handle_db_result(result):
         return {"RESULT_CODE": 500, "RESULT_MSG": "Failed to export db"}
-
-    logging.info(f"Copying the CSV files from DB Server to /data/ccp/{payload.pid}/DATABASE")
-    # 구현 중 #
 
     logging.info(f"Copying the OUTPUT files from Storage Server to /data/ccp/{payload.pid}/OUTPUT")
     try:
@@ -198,9 +238,6 @@ async def api_project_export(payload: ccp_payload):
     except Exception as e:
         logging.error(f"Failed to download OUTPUT files from storage server: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to download OUTPUT files from storage server: {str(e)}")
-
-    logging.info(f"Creating the Project_Info.json file to /data/ccp/{payload.pid}")
-    # 구현 중 #
 
     logging.info(f"Encrypting /data/ccp/{payload.pid} folder to /data/ccp/{payload.pid}.ccp")
     try:
@@ -218,6 +255,6 @@ async def api_project_export(payload: ccp_payload):
     # try: 디버깅 용으로 임시 주석처리 (25.01.25)
     #     shutil.rmtree(f'/data/ccp/{payload.pid}')
     # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=f"Failed to delete folder: {str(e)}")
-
-    return {"RESULT_CODE": 200, "RESULT_MSG": f"Project Export Job for {payload.pid} has been completed successfully."}
+    #     logging.error(f"Failed to delete folder: {str(e)}")
+    
+    return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} exported successfully."}
