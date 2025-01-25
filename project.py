@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2024/11/26                                                  
+   업데이트 : 2025/01/25                                                  
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -34,6 +34,7 @@ class ProjectInit(BaseModel):
     pperiod: str  # 프로젝트 개발 기간 (예: "241012-241130")
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
     univ_id: int
+    wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
 
 
 class ProjectEdit(BaseModel):  
