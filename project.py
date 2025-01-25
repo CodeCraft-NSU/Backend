@@ -32,6 +32,7 @@ class ProjectInit(BaseModel):
     pperiod: str  # 프로젝트 개발 기간 (예: "241012-241130")
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
     univ_id: int
+    wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
 
 
 class ProjectEdit(BaseModel):  
@@ -42,6 +43,7 @@ class ProjectEdit(BaseModel):
     psize: int  # 프로젝트 개발 인원
     pperiod: str  # 프로젝트 개발 기간 (예: "241012-241130")
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
+    wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
 
 
 class ProjectLoad(BaseModel):  
@@ -87,6 +89,10 @@ class ProjectCheckUser(BaseModel):
     """프로젝트 팀원 조회 클래스"""
     pid: int
 
+class Wizard(BaseModel):
+    pid: int
+
+
 # 유틸리티 함수
 def gen_project_uid():
     """프로젝트 고유 ID 생성"""
@@ -111,18 +117,37 @@ async def api_project_init(payload: ProjectInit):
     """프로젝트 생성 및 초기화"""
     try:
         # 1. 프로젝트 고유 ID 생성
-        PUID = gen_project_uid()
+        try:
+            PUID = gen_project_uid()
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate Project UID: {str(e)}",
+            )
+        
         # 2. 프로젝트 데이터베이스 초기화
-        db_result = project_DB.init_project(payload, PUID)
+        try:
+            db_result = project_DB.init_project(payload, PUID)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database initialization failed for PUID: {PUID}. Error: {str(e)}",
+            )
         if not db_result:
             raise HTTPException(
                 status_code=500,
-                detail=f"Database initialization failed for PUID: {PUID}",
+                detail=f"Database initialization returned False for PUID: {PUID}",
             )
+        
         # 3. 파일 시스템 초기화
-        file_result = init_file_system(PUID)
+        try:
+            file_result = init_file_system(PUID)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"File system initialization failed for PUID: {PUID}. Error: {str(e)}",
+            )
         if not file_result:
-            # 파일 시스템 초기화 실패 시 방금 생성된 프로젝트 삭제
             delete_result = project_DB.delete_project(PUID)
             if not delete_result:
                 raise HTTPException(
@@ -133,20 +158,35 @@ async def api_project_init(payload: ProjectInit):
                 status_code=500,
                 detail=f"File system initialization failed for PUID: {PUID}. Project deleted successfully.",
             )
+        
         # 4. 프로젝트에 팀장 계정 추가
-        adduser_result = project_DB.add_project_user(PUID, payload.univ_id, 1, "Project Leader")
-        if not adduser_result: 
+        try:
+            adduser_result = project_DB.add_project_user(PUID, payload.univ_id, 1, "Project Leader")
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to add Project Leader for PUID: {PUID}. Error: {str(e)}",
+            )
+        if not adduser_result:
             raise HTTPException(
                 status_code=500,
                 detail=f"Add User to Project failed for PUID: {PUID}",
             )
+        
         # 5. 팀장 권한 추가
-        addleader_result = permission.api_add_leader_permission(PUID, payload.univ_id)
-        if not addleader_result: 
+        try:
+            addleader_result = permission.api_add_leader_permission(PUID, payload.univ_id)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to add leader permissions for PUID: {PUID}. Error: {str(e)}",
+            )
+        if not addleader_result:
             raise HTTPException(
                 status_code=500,
                 detail=f"Add leader permission to user failed for PUID: {PUID}",
             )
+        
         # 6. 성공 응답 반환
         return {
             "RESULT_CODE": 200,
@@ -191,6 +231,7 @@ async def api_project_load(payload: ProjectLoad):
                 "psize": project["p_memcount"],
                 "pperiod": f"{project['p_start']}-{project['p_end']}",
                 "pmm": project["p_method"],
+                "wizard": project["p_wizard"],
             }
             for project in project_info
         ]
@@ -291,3 +332,13 @@ async def api_project_check_user(payload: ProjectCheckUser):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error checking project users: {str(e)}")
+
+
+@router.post("/project/endwizard")
+async def api_complete_wizard(payload: Wizard):
+    try:
+        result = project_DB.complete_setup_wizard(payload.pid)
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to complete wizard: {e}")
+    return {"RESULT_CODE": 200, "RESULT_MSG": "Wizard complete successfully"}
