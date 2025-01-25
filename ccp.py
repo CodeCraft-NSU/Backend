@@ -22,6 +22,7 @@ router = APIRouter()
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import csv_DB
+import push
 
 class ccp_payload(BaseModel):
     pid: int = None
@@ -249,7 +250,8 @@ async def api_project_export(payload: ccp_payload):
         raise HTTPException(status_code=500, detail=f"Error during encryption: {str(e)}")
 
     logging.info(f"Pushing /data/ccp/{payload.pid}.ccp file to Next.JS Server")
-    # 구현 중 #
+    output_path = f"/data/ccp/{payload.pid}.ccp"
+    push.push_to_nextjs(output_path, f"{payload.pid}.ccp")
 
     logging.info(f"Deleting /data/ccp/{payload.pid} folder")
     # try: 디버깅 용으로 임시 주석처리 (25.01.25)
