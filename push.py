@@ -1,3 +1,15 @@
+"""                                                          
+   CodeCraft PMS Backend Project                             
+                                                                              
+   파일명   : push.py                                                          
+   생성자   : 김창환                                
+                                                                              
+   생성일   : 2025/01/25                                                  
+   업데이트 : 2025/01/25                                     
+                                                                             
+   설명     : Next.JS에 파일을 전송하는 함수 정의
+"""
+
 import logging
 import requests
 from fastapi import HTTPException
