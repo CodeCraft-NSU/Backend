@@ -174,6 +174,16 @@ async def api_project_init(payload: ProjectInit):
                 status_code=500,
                 detail=f"Add leader permission to user failed for PUID: {PUID}",
             )
+
+        logger.debug("Step 6: Init WBS data")
+        wbs_data = ["", "", "", "", "", "", "INITWBS", "", 0, "2025-01-01", "2025-01-10", 1, 0, 0, 0]
+        initwbs_result = wbs.init_wbs(wbs_data, payload.pid)
+        if not addleader_result:
+            logger.error(f"Add leader permission failed for PUID: {PUID}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Add leader permission to user failed for PUID: {PUID}",
+            )
         
         logger.info(f"Project {PUID} created successfully")
         return {

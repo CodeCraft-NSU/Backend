@@ -33,6 +33,17 @@ class WBSUpdatePayload(BaseModel):
 class WBSPayload(BaseModel):
     pid: int
 
+def init_wbs(data, pid):
+    try:
+        init_result = wbs_DB.add_multiple_wbs(data, pid)
+        if init_result != True:
+            raise HTTPException(status_code=500, detail=f"Failed to add init WBS data. Error: {init_result}")
+        
+        return {"RESULT_CODE": 200, "RESULT_MSG": "WBS init successful"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error during WBS batch update: {str(e)}")
+
 # 기존 WBS 삭제 및 새로 추가하는 엔드포인트
 @router.post("/wbs/update")
 async def batch_update_wbs(payload: WBSUpdatePayload):
