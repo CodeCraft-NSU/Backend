@@ -16,7 +16,9 @@ from pydantic import BaseModel
 from docx import Document
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from datetime import datetime, date
+from urllib.parse import quote
 import pymysql, os, sys, traceback
+import logging, requests
 import re  # 정규식 사용
 
 sys.path.append(os.path.abspath('/data/Database Project'))
