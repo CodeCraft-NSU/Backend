@@ -1,2 +1,65 @@
 Backend Server Repository
 -------------
+
+### 사용한 Python package list
+| Package                     | Version   |
+|-----------------------------|-----------|
+| annotated-types             | 0.7.0     |
+| anyio                       | 4.6.2     |
+| cachetools                  | 5.5.0     |
+| certifi                     | 2024.8.30 |
+| cffi                        | 1.17.1    |
+| charset-normalizer          | 3.4.0     |
+| click                       | 8.1.7     |
+| cryptography                | 43.0.1    |
+| distro                      | 1.9.0     |
+| fastapi                     | 0.115.2   |
+| google-ai-generativelanguage| 0.6.10    |
+| google-api-core             | 2.24.0    |
+| google-api-python-client    | 2.159.0   |
+| google-auth                 | 2.37.0    |
+| google-auth-httplib2        | 0.2.0     |
+| google-generativeai         | 0.8.3     |
+| googleapis-common-protos    | 1.66.0    |
+| greenlet                    | 3.1.1     |
+| grpcio                      | 1.69.0    |
+| grpcio-status               | 1.69.0    |
+| h11                         | 0.14.0    |
+| httpcore                    | 1.0.7     |
+| httplib2                    | 0.22.0    |
+| httptools                   | 0.6.1     |
+| httpx                       | 0.28.1    |
+| idna                        | 3.10      |
+| jiter                       | 0.8.2     |
+| lxml                        | 5.3.0     |
+| mysql-connector-python      | 9.1.0     |
+| openai                      | 1.59.6    |
+| pip                         | 24.0      |
+| proto-plus                  | 1.25.0    |
+| protobuf                    | 5.29.3    |
+| pyasn1                      | 0.6.1     |
+| pyasn1_modules              | 0.4.1     |
+| pycparser                   | 2.22      |
+| pydantic                    | 2.9.2     |
+| pydantic_core               | 2.23.4    |
+| PyMySQL                     | 1.1.1     |
+| pyparsing                   | 3.2.1     |
+| python-docx                 | 1.1.2     |
+| python-dotenv               | 1.0.1     |
+| python-multipart            | 0.0.17    |
+| PyYAML                      | 6.0.2     |
+| requests                    | 2.32.3    |
+| rsa                         | 4.9       |
+| setuptools                  | 68.1.2    |
+| sniffio                     | 1.3.1     |
+| SQLAlchemy                  | 2.0.36    |
+| starlette                   | 0.39.2    |
+| tqdm                        | 4.67.1    |
+| typing_extensions           | 4.12.2    |
+| uritemplate                 | 4.1.1     |
+| urllib3                     | 2.2.3     |
+| uvicorn                     | 0.31.1    |
+| uvloop                      | 0.20.0    |
+| watchfiles                  | 0.24.0    |
+| websockets                  | 13.1      |
+| wheel                       | 0.42.0    |
