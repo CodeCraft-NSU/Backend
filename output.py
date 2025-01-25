@@ -20,6 +20,7 @@ import sys, os, random, requests, json, logging, shutil, subprocess
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import output_DB
+import push
 
 router = APIRouter()
 
@@ -847,29 +848,7 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
             raise HTTPException(status_code=500, detail=f"File save error: {str(e)}")
 
         # 4. Next.js에 파일 데이터 전송
-        try:
-            logging.info(f"Sending file {file_name} to Next.js using Raw Binary")
-
-            with open(temp_file_path, "rb") as file:
-                response = requests.post(
-                    "http://192.168.50.84:90/api/file_receive",
-                    data=file,
-                    headers={
-                        "Content-Type": "application/octet-stream",
-                        "file-name": quote(file_name)
-                    }
-                )
-
-            if response.status_code != 200:
-                logging.error(f"Frontend server response error: {response.status_code} - {response.text}")
-                raise HTTPException(status_code=500, detail="Failed to send file to frontend")
-
-            logging.info(f"File {file_name} successfully transferred to frontend")
-            return {"RESULT_CODE": 200, "RESULT_MSG": "File transferred successfully"}
-
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Failed to send file to frontend: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
+        push.push_to_nextjs(temp_file_path, file_name)
 
     except Exception as e:
         logging.error(f"Unexpected error during file transfer: {str(e)}")

@@ -254,9 +254,9 @@ async def api_project_export(payload: ccp_payload):
     push.push_to_nextjs(output_path, f"{payload.pid}.ccp")
 
     logging.info(f"Deleting /data/ccp/{payload.pid} folder")
-    # try: 디버깅 용으로 임시 주석처리 (25.01.25)
-    #     shutil.rmtree(f'/data/ccp/{payload.pid}')
-    # except Exception as e:
-    #     logging.error(f"Failed to delete folder: {str(e)}")
+    try:
+        shutil.rmtree(f'/data/ccp/{payload.pid}')
+    except Exception as e:
+        logging.error(f"Failed to delete folder: {str(e)}")
     
     return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} exported successfully."}
