@@ -147,7 +147,7 @@ def save_llm_data(pid, contents):
         f.write(contents)
 
 @router.post("/llm/reconnect")
-def api_reconnect_gpt(payload: llm_payload):
+async def api_reconnect_gpt(payload: llm_payload):
     # PMS의 세션을 복원 시 GPT 통신 기록을 프론트에 전달 #
     try:
         logging.info(f"Sending gpt chat file to Next.js using Raw Binary")
@@ -173,14 +173,33 @@ def api_reconnect_gpt(payload: llm_payload):
         logging.error(f"Failed to send file to frontend: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
 
+def create_gpt_txt(pid):
+    contents = prompt_init + "\n\n" + llm_init(payload.pid) + "\n\n"
+    save_llm_data(pid, contents)
+
 @router.post("/llm/interact")
-def api_interact_gpt(payload: llm_payload):
+async def api_interact_gpt(payload: llm_payload):
     # ChatGPT와 세션을 맺는 기능 구현 #
-    key = load_key(payload.pid)
+
+    gpt_chat_path = f"gpt/{pid}.txt"
+    if not os.path.isfile(gpt_chat_path): # 이전 프롬프트 기록이 없다면
+        create_gpt_txt(payload.pid) # 프롬프트 기록 생성
+
+    key = load_key(payload.pid) # Gemini key 로드
     genai.configure(api_key=key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    contents = prompt_init + "\n\n" + llm_init(payload.pid) + "\n\n" + payload.prompt
-#    print(contents)
-    response = model.generate_content(contents)
+    model = genai.GenerativeModel("gemini-1.5-flash") # Gemini 모델 선언
+
+    try:
+        with open(gpt_chat_path, "r", encoding="utf-8") as file:
+            previous_prompts = file.read() # 이전 프롬프트 기록 불러오기
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read {gpt_file_path}: {e}")
+
+    new_prompt = f"{previous_prompts}\n\n{payload.prompt}" # 이전 프롬프트 + 신규 프롬프트
+    response = model.generate_content(new_prompt) # 프롬프트 전송
+
     save_llm_data(payload.pid, response.text)
     return response.text
+
+
+# 프롬프트와 응답을 모두 저장해야 하는데, 현재는 초기 프롬프트를 제외하면 응답만 저장하게 되어있음 수정 필요

@@ -35,6 +35,7 @@ class ProjectInit(BaseModel):
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
     univ_id: int
     wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
+    prof_id: int # 담당 교수의 교번
 
 
 class ProjectEdit(BaseModel):  
@@ -46,6 +47,7 @@ class ProjectEdit(BaseModel):
     pperiod: str  # 프로젝트 개발 기간 (예: "241012-241130")
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
     wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
+    prof_id: int # 담당 교수의 교번
 
 
 class ProjectLoad(BaseModel):  
