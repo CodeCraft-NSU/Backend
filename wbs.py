@@ -5,7 +5,7 @@
    생성자   : 김창환                                                         
                                                                               
    생성일   : 2024/11/24                                                       
-   업데이트 : 2025/01/04                                                       
+   업데이트 : 2025/01/21                                                  
                                                                               
    설명     : WBS 관련 엔드포인트 정의
 """
@@ -32,6 +32,17 @@ class WBSUpdatePayload(BaseModel):
 
 class WBSPayload(BaseModel):
     pid: int
+
+def init_wbs(data, pid):
+    try:
+        init_result = wbs_DB.add_multiple_wbs(data, pid)
+        if init_result != True:
+            raise HTTPException(status_code=500, detail=f"Failed to add init WBS data. Error: {init_result}")
+        
+        return {"RESULT_CODE": 200, "RESULT_MSG": "WBS init successful"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error during WBS batch update: {str(e)}")
 
 # 기존 WBS 삭제 및 새로 추가하는 엔드포인트
 @router.post("/wbs/update")
@@ -75,3 +86,13 @@ async def delete_all_wbs(payload: WBSPayload):
             raise HTTPException(status_code=404, detail="No WBS items found to delete")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting all WBS items: {str(e)}")
+
+# WBS의 진척률 평균을 조회하는 엔드포인트
+@router.post("/wbs/load_ratio")
+async def load_ratio(payload: WBSPayload):
+    try:
+        result = wbs_DB.fetch_wbs_ratio(payload.pid)
+        return {"RESULT_CODE": 200, "RESULT_MSG": result}
+    except HTTPException as e:
+        return {"RESULT_CODE": 500, "RESULT_MSG": e.detail}
+        raise e

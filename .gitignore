@@ -1,5 +1,7 @@
 .env
 llm_key.json
+app.log
 __pycache__/
 uploaded_files/
-temp/
+doc_conv/
+gpt/

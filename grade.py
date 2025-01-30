@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/11/24                                                      
-   업데이트 : 2025/01/14                                             
+   업데이트 : 2025/01/30                                            
                                                                              
    설명     : 프로젝트를 평가와 관련 된 엔드포인트 정의
 """
@@ -26,6 +26,7 @@ class GradePayload(BaseModel):
     pid: str = None
     univ_id: int = None
     grade: str = None
+    comment: str = None
 
 @router.post("/grade/assign")
 async def grade_assign(payload: GradePayload):
@@ -33,7 +34,8 @@ async def grade_assign(payload: GradePayload):
         result = grade_DB.assign_grade(
             pid=payload.pid,
             univ_id=payload.univ_id,
-            grade=payload.grade
+            grade=payload.grade,
+            comment=payload.comment
         )
         if result: return {"RESULT_CODE": 200, "RESULT_MSG": "Assign Successful."}
         else: raise HTTPException(status_code=500, detail="Assign Failed.")

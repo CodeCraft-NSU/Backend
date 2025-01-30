@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2024/11/26                                                  
+   업데이트 : 2025/01/25                                                  
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -16,10 +16,12 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import random  # gen_project_uid 함수에서 사용
 import sys, os, requests
+import logging
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
 import permission
+import wbs
 
 router = APIRouter()
 
@@ -32,6 +34,8 @@ class ProjectInit(BaseModel):
     pperiod: str  # 프로젝트 개발 기간 (예: "241012-241130")
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
     univ_id: int
+    wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
+    prof_id: int # 담당 교수의 교번
 
 
 class ProjectEdit(BaseModel):  
@@ -42,6 +46,8 @@ class ProjectEdit(BaseModel):
     psize: int  # 프로젝트 개발 인원
     pperiod: str  # 프로젝트 개발 기간 (예: "241012-241130")
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
+    wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
+    prof_id: int # 담당 교수의 교번
 
 
 class ProjectLoad(BaseModel):  
@@ -87,6 +93,23 @@ class ProjectCheckUser(BaseModel):
     """프로젝트 팀원 조회 클래스"""
     pid: int
 
+class Wizard(BaseModel):
+    pid: int
+
+
+# 로거 초기화
+logging.basicConfig(
+    level=logging.DEBUG,  # 디버깅 수준 설정
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # 로그 메시지 포맷
+    handlers=[
+        logging.StreamHandler(),  # 콘솔 출력 핸들러
+        logging.FileHandler("app.log", encoding="utf-8"),  # 파일 출력 핸들러
+    ],
+)
+
+# logger 객체 생성
+logger = logging.getLogger("project_logger")  # 로거 이름 설정
+
 # 유틸리티 함수
 def gen_project_uid():
     """프로젝트 고유 ID 생성"""
@@ -110,19 +133,23 @@ def init_file_system(PUID):
 async def api_project_init(payload: ProjectInit):
     """프로젝트 생성 및 초기화"""
     try:
-        # 1. 프로젝트 고유 ID 생성
+        logger.debug("Step 1: Generating Project UID")
         PUID = gen_project_uid()
-        # 2. 프로젝트 데이터베이스 초기화
+        logger.debug(f"Generated PUID: {PUID}")
+        
+        logger.debug("Step 2: Initializing project in the database")
         db_result = project_DB.init_project(payload, PUID)
         if not db_result:
+            logger.error(f"Database initialization failed for PUID: {PUID}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Database initialization failed for PUID: {PUID}",
+                detail=f"Database initialization returned False for PUID: {PUID}",
             )
-        # 3. 파일 시스템 초기화
+        
+        logger.debug("Step 3: Initializing file system")
         file_result = init_file_system(PUID)
         if not file_result:
-            # 파일 시스템 초기화 실패 시 방금 생성된 프로젝트 삭제
+            logger.error(f"File system initialization failed for PUID: {PUID}")
             delete_result = project_DB.delete_project(PUID)
             if not delete_result:
                 raise HTTPException(
@@ -133,35 +160,51 @@ async def api_project_init(payload: ProjectInit):
                 status_code=500,
                 detail=f"File system initialization failed for PUID: {PUID}. Project deleted successfully.",
             )
-        # 4. 프로젝트에 팀장 계정 추가
+        
+        logger.debug("Step 4: Adding project leader to database")
         adduser_result = project_DB.add_project_user(PUID, payload.univ_id, 1, "Project Leader")
-        if not adduser_result: 
+        if not adduser_result:
+            logger.error(f"Add User to Project failed for PUID: {PUID}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Add User to Project failed for PUID: {PUID}",
             )
-        # 5. 팀장 권한 추가
-        addleader_result = permission.api_add_leader_permission(PUID, payload.univ_id)
-        if not addleader_result: 
+        
+        logger.debug("Step 5: Adding leader permissions")
+        addleader_result = permission.add_leader_permission(PUID, payload.univ_id)
+        if not addleader_result:
+            logger.error(f"Add leader permission failed for PUID: {PUID}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Add leader permission to user failed for PUID: {PUID}",
             )
-        # 6. 성공 응답 반환
+
+        logger.debug("Step 6: Init WBS data")
+        wbs_data = [["", "", "", "", "", "", "INITWBS", "", 0, "2025-01-01", "2025-01-10", 1, 0, 0, 0]]
+        initwbs_result = wbs.init_wbs(wbs_data, PUID)
+        if not addleader_result:
+            logger.error(f"Add leader permission failed for PUID: {PUID}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Add leader permission to user failed for PUID: {PUID}",
+            )
+        
+        logger.info(f"Project {PUID} created successfully")
         return {
             "RESULT_CODE": 200,
             "RESULT_MSG": "Project created successfully",
             "PAYLOADS": {"PUID": PUID},
         }
     except HTTPException as http_exc:
-        # HTTPException은 그대로 전달
+        logger.error(f"HTTPException occurred: {http_exc.detail}")
         raise http_exc
     except Exception as e:
-        # 알 수 없는 예외 처리
+        logger.error(f"Unexpected error occurred: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Unexpected error during project creation: {str(e)}",
         )
+
 
 @router.post("/project/edit")
 async def api_project_edit(payload: ProjectEdit):
@@ -191,6 +234,7 @@ async def api_project_load(payload: ProjectLoad):
                 "psize": project["p_memcount"],
                 "pperiod": f"{project['p_start']}-{project['p_end']}",
                 "pmm": project["p_method"],
+                "wizard": project["p_wizard"],
             }
             for project in project_info
         ]
@@ -291,3 +335,13 @@ async def api_project_check_user(payload: ProjectCheckUser):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error checking project users: {str(e)}")
+
+
+@router.post("/project/endwizard")
+async def api_complete_wizard(payload: Wizard):
+    try:
+        result = project_DB.complete_setup_wizard(payload.pid)
+    except Exception as e:
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to complete wizard: {e}")
+    return {"RESULT_CODE": 200, "RESULT_MSG": "Wizard complete successfully"}

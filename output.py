@@ -5,7 +5,7 @@
     생성자   : 김창환
 
     생성일   : 2024/10/20
-    업데이트 : 2025/01/11
+    업데이트 : 2025/01/21
 
     설명     : 산출물의 생성, 수정, 조회, 삭제, 업로드를 위한 API 엔드포인트 정의
 """
@@ -20,6 +20,7 @@ import sys, os, random, requests, json, logging, shutil, subprocess
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import output_DB
+import push
 
 router = APIRouter()
 
@@ -800,7 +801,7 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
         3. 확인한 경로를 Storage Server에 인자로 전달
         4. Storage Server에서 해당 경로에 있는 파일을 form 데이터로 다시 API Server에 전달
         5. API Server에서 form 데이터를 받으면 그것을 /data/tmp에 저장하되, 파일 이름은 db에서 확인한 파일 이름을 사용
-        6. 저장한 파일을 Next.JS에 form 형태로 전달
+        6. 저장한 파일을 Next.JS에 post로 전달하며, 해당 파일의 원본 이름은 헤더에 저장
     """
     temp_file_path = None  # 파일 삭제를 위해 finally에서 접근하기 위한 변수
 
@@ -846,30 +847,8 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
             logging.error(f"Failed to save file to {temp_file_path}: {str(e)}")
             raise HTTPException(status_code=500, detail=f"File save error: {str(e)}")
 
-        # 4. Next.js에 파일 form 데이터로 전송
-        try:
-            logging.info(f"Sending file {file_name} to Next.js using Raw Binary")
-
-            with open(temp_file_path, "rb") as file:
-                response = requests.post(
-                    "http://192.168.50.84:90/api/file_receive",
-                    data=file,
-                    headers={
-                        "Content-Type": "application/octet-stream",
-                        "file-name": quote(file_name)
-                    }
-                )
-
-            if response.status_code != 200:
-                logging.error(f"Frontend server response error: {response.status_code} - {response.text}")
-                raise HTTPException(status_code=500, detail="Failed to send file to frontend")
-
-            logging.info(f"File {file_name} successfully transferred to frontend")
-            return {"RESULT_CODE": 200, "RESULT_MSG": "File transferred successfully"}
-
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Failed to send file to frontend: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
+        # 4. Next.js에 파일 데이터 전송
+        push.push_to_nextjs(temp_file_path, file_name)
 
     except Exception as e:
         logging.error(f"Unexpected error during file transfer: {str(e)}")
@@ -883,3 +862,13 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
                 logging.info(f"Temporary file deleted: {temp_file_path}")
             except Exception as e:
                 logging.error(f"Failed to delete temporary file {temp_file_path}: {str(e)}")
+
+
+@router.post("/output/load_type")
+async def api_otherdoc_type(payload: OtherDocumentPayload):
+    try:
+        result = output_DB.fetch_document_type(payload.file_unique_id)
+        return {"RESULT_CODE": 200, "RESULT_MSG": result}
+    except HTTPException as e:
+        return {"RESULT_CODE": 500, "RESULT_MSG": e.detail}
+        raise e

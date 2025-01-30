@@ -16,11 +16,14 @@ from pydantic import BaseModel
 from docx import Document
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from datetime import datetime, date
+from urllib.parse import quote
 import pymysql, os, sys, traceback
+import logging, requests
 import re  # 정규식 사용
 
 sys.path.append(os.path.abspath('/data/Database Project'))
 import output_DB
+import push
 
 router = APIRouter()
 
@@ -101,6 +104,8 @@ def process_meeting_minutes(doc_s_no):
     output_path = f"doc_conv/회의록_{doc_s_no}.docx"
     doc.save(output_path)
 
+    push.push_to_nextjs(output_path, f"회의록_{doc_s_no}.docx")
+
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!"}
 
 def process_summary(doc_s_no):
@@ -152,6 +157,8 @@ def process_summary(doc_s_no):
     output_path = f"doc_conv/개요서_{doc_s_no}.docx"
     doc.save(output_path)
 
+    push.push_to_nextjs(output_path, f"개요서_{doc_s_no}.docx")
+
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!"}
 
 
@@ -195,6 +202,8 @@ def process_reqspec(doc_r_no):
     # 문서 저장
     output_path = f"doc_conv/요구사항_{doc_r_no}.docx"
     doc.save(output_path)
+
+    push.push_to_nextjs(output_path, f"요구사항_{doc_s_no}.docx")
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!"}
 
@@ -243,6 +252,8 @@ def process_testcase(doc_t_no):
     # 문서 저장
     output_path = f"doc_conv/테스트케이스_{doc_t_no}.docx"
     doc.save(output_path)
+
+    push.push_to_nextjs(output_path, f"테스트케이스_{doc_s_no}.docx")
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!", "OUTPUT_PATH": output_path}
 
@@ -294,6 +305,8 @@ def process_report(doc_rep_no):
     # 문서 저장
     output_path = f"doc_conv/보고서_{doc_rep_no}.docx"
     doc.save(output_path)
+
+    push.push_to_nextjs(output_path, f"보고서_{doc_s_no}.docx")
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!", "OUTPUT_PATH": output_path}
 
