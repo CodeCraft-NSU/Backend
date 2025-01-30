@@ -26,6 +26,7 @@ class GradePayload(BaseModel):
     pid: str = None
     univ_id: int = None
     grade: str = None
+    comment: str = None
 
 @router.post("/grade/assign")
 async def grade_assign(payload: GradePayload):
@@ -33,7 +34,8 @@ async def grade_assign(payload: GradePayload):
         result = grade_DB.assign_grade(
             pid=payload.pid,
             univ_id=payload.univ_id,
-            grade=payload.grade
+            grade=payload.grade,
+            comment=payload.comment
         )
         if result: return {"RESULT_CODE": 200, "RESULT_MSG": "Assign Successful."}
         else: raise HTTPException(status_code=500, detail="Assign Failed.")
