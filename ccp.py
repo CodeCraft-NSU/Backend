@@ -27,6 +27,7 @@ import push
 class ccp_payload(BaseModel):
     pid: int = None
     univ_id: int = None
+    msg: str = None
 
 def handle_db_result(result):
     if isinstance(result, Exception):
@@ -224,7 +225,7 @@ async def api_project_export(payload: ccp_payload):
 
     logging.info(f"Exporting the database to CSV files for project ID: {payload.pid}")
     try:
-        result = csv_DB.export_csv(payload.pid)
+        result = csv_DB.export_csv(payload.pid, payload.univ_id, payload.msg)
     except Exception as e:
         logging.error(f"Failed to export db: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to export db: {e}")
