@@ -5,7 +5,7 @@
    생성자   : 김창환                                                         
                                                                               
    생성일   : 2024/11/24                                                       
-   업데이트 : 2025/01/21                                                  
+   업데이트 : 2025/01/30                                         
                                                                               
    설명     : WBS 관련 엔드포인트 정의
 """
@@ -52,7 +52,7 @@ async def batch_update_wbs(payload: WBSUpdatePayload):
         delete_result = wbs_DB.delete_all_wbs(payload.pid)
         if delete_result != True:
             raise HTTPException(status_code=500, detail=f"Failed to delete existing WBS data. Error: {delete_result}")
-        
+        # DB가 존재하지 않을 시 무시하고 데이터를 추가하는 기능이 필요할 듯
         # Step 2: 새로운 WBS 데이터 추가
         add_result = wbs_DB.add_multiple_wbs(payload.wbs_data, payload.pid)
         if add_result != True:

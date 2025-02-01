@@ -70,7 +70,7 @@ async def fetch_one_grade(payload: GradePayload):
 async def fetch_one_student(payload: GradePayload):
     try:
         result = grade_DB.fetch_grade_by_student(
-            univ_id=payload.univ_id
+            univ_id=payload.univ_id # 한 사람이 여러 프로젝트에 들어가 있으면 오류가 발생할 수 있지 않을까
         )
         if result: return {"RESULT_CODE": 200, "RESULT_MSG": "Fetch Successful.", "PAYLOAD": {"Grade": result}}
         else: raise HTTPException(status_code=500, detail=f"Error in Database Operation: {str(result)}")
