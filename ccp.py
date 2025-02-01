@@ -261,3 +261,23 @@ async def api_project_export(payload: ccp_payload):
         logging.error(f"Failed to delete folder: {str(e)}")
     
     return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} exported successfully."}
+
+@router.post("/ccp/del_history")
+async def api_delete_history(payload: ccp_payload):
+    try:
+        result = delete_csv_history(payload.pid)
+        if not result:
+            raise HTTPException(status_code=500, detail=f"Failed to delete history for pid {payload.pid}")
+    except Exception as e:
+        logging.error(f"Error occurred during delete history for pid {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during process: {str(e)}")
+
+@router.post("/ccp/load_history")
+async def api_load_history(payload: ccp_payload):
+    try:
+        result = fetch_csv_history(payload.pid)
+        if not result:
+            raise HTTPException(status_code=500, detail=f"Failed to load history for pid {payload.pid}")
+    except Exception as e:
+        logging.error(f"Error occurred during load history for pid {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during load: {str(e)}")
