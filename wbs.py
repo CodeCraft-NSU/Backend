@@ -44,23 +44,21 @@ def init_wbs(data, pid):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during WBS batch update: {str(e)}")
 
-# 기존 WBS 삭제 및 새로 추가하는 엔드포인트
 @router.post("/wbs/update")
 async def batch_update_wbs(payload: WBSUpdatePayload):
     try:
-        # Step 1: 기존 WBS 데이터 삭제
-        delete_result = wbs_DB.delete_all_wbs(payload.pid)
-        if delete_result != True:
-            # DB가 존재하지 않을 시 무시하고 데이터를 추가하는 기능 추가 (25.02.01)
-            logger.error(f"Failed to delete existing WBS data. Error: {delete_result}. Skipping...")
-            #raise HTTPException(status_code=500, detail=f"Failed to delete existing WBS data. Error: {delete_result}")
+        # Step 1: 기존 WBS 데이터 삭제 (예외 발생 시 무시)
+        try:
+            delete_result = wbs_DB.delete_all_wbs(payload.pid)
+            if delete_result != True:
+                logger.warning(f"WBS data does not exist for Project UID {payload.pid}. Proceeding with insertion.")
+        except Exception as e:
+            logger.warning(f"Error while deleting existing WBS data: {str(e)}. Proceeding with insertion.")
         # Step 2: 새로운 WBS 데이터 추가
         add_result = wbs_DB.add_multiple_wbs(payload.wbs_data, payload.pid)
         if add_result != True:
             raise HTTPException(status_code=500, detail=f"Failed to add new WBS data. Error: {add_result}")
-        
         return {"RESULT_CODE": 200, "RESULT_MSG": "WBS batch update successful"}
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during WBS batch update: {str(e)}")
 
