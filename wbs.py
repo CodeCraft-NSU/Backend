@@ -50,10 +50,10 @@ async def batch_update_wbs(payload: WBSUpdatePayload):
     try:
         # Step 1: 기존 WBS 데이터 삭제
         delete_result = wbs_DB.delete_all_wbs(payload.pid)
-        if delete_result != True:
-            # DB가 존재하지 않을 시 무시하고 데이터를 추가하는 기능 추가 (25.02.01)
-            logger.error(f"Failed to delete existing WBS data. Error: {delete_result}. Skipping...")
-            #raise HTTPException(status_code=500, detail=f"Failed to delete existing WBS data. Error: {delete_result}")
+        # if delete_result is False: # 해당 함수 주석처리 (25.02.03)
+        #     # DB가 존재하지 않을 시 무시하고 데이터를 추가하는 기능 추가 (25.02.01)
+        #     logger.error(f"Failed to delete existing WBS data. Error: {delete_result}. Skipping...")
+        #     #raise HTTPException(status_code=500, detail=f"Failed to delete existing WBS data. Error: {delete_result}")
         # Step 2: 새로운 WBS 데이터 추가
         add_result = wbs_DB.add_multiple_wbs(payload.wbs_data, payload.pid)
         if add_result != True:
