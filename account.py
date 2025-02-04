@@ -148,17 +148,16 @@ async def api_acc_check(payload: AccCheck_Payload):
     """비밀번호 리셋 전 정보 확인 함수"""
     try:
         result = account_DB.find_user_pw(
-            payload.univ_id,
-            payload.name,
-            payload.email,
-            payload.user_id
+            univ_id = payload.univ_id,
+            name = payload.name,
+            email = payload.email,
+            id = payload.user_id
         )
-        if isinstance(result, Exception):
-            raise HTTPException(status_code=500, detail=f"Error during account validate: {str(result)}")
         if result is True:
             return {"RESULT_CODE": 200, "RESULT_MSG": "OK"}
         else:
-            raise HTTPException(status_code=500, detail="Account validation failed")
+            # raise HTTPException(status_code=500, detail="Account validation failed")
+            return {"RESULT_CODE": 400, "RESULT_MSG": "Account validation failed"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unhandled exception during account validation: {str(e)}")
 
@@ -170,11 +169,10 @@ async def api_acc_pwreset(payload: PwReset_Payload):
             payload.univ_id,
             payload.pw
         )
-        if isinstance(result, Exception):
-            raise HTTPException(status_code=500, detail=f"Error while editing password: {str(result)}")
         if result is True:
             return {"RESULT_CODE": 200, "RESULT_MSG": "OK"}
         else:
-            raise HTTPException(status_code=500, detail="Password update failed")
+            # raise HTTPException(status_code=500, detail="Password update failed")
+            return {"RESULT_CODE": 400, "RESULT_MSG": "Password update failed"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unhandled exception while updating password: {str(e)}")
