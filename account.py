@@ -145,7 +145,11 @@ async def api_acc_delacc_post(payload: DelAcc_Payload):
 
 @router.post("/acc/checkacc")
 async def api_acc_check(payload: AccCheck_Payload):
-    """비밀번호 리셋 전 정보 확인 함수"""
+    """
+    비밀번호 리셋 전 정보 확인 함수
+    비밀번호 찾기 기능의 경우, 먼저 이 엔드포인트를 통해 Return 값이 200인지 확인 후,
+    맞다면 api_acc_pwreset 함수 실행
+    """
     try:
         result = account_DB.find_user_pw(
             univ_id = payload.univ_id,

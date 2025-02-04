@@ -15,7 +15,7 @@ from cryptography.fernet import Fernet
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from urllib.parse import quote
-import os, sys, logging, shutil, tarfile, io, struct, httpx
+import os, sys, logging, shutil, tarfile, io, struct, httpx, requests
 import traceback
 
 router = APIRouter()
@@ -250,6 +250,41 @@ async def api_project_export(payload: ccp_payload):
         logging.error(f"Error occurred during encryption process for pid {payload.pid}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error during encryption: {str(e)}")
 
+    logging.info("Saving data to MySQL database")
+    ver = csv_DB.insert_csv_history(payload.pid, payload.univ_id, payload.msg)
+    if ver is None:
+        raise HTTPException(status_code=500, detail="Failed to insert history record")
+
+    logging.info("Uploading CCP file to Storage Server")
+    ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
+    ccp_file_name = f"{payload.pid}_{ver}.ccp"
+    storage_url = "http://192.168.50.84:10080/api/ccp/pull"
+    try:
+        logging.info(f"Reading CCP file: {ccp_file_path}")
+        with open(ccp_file_path, "rb") as file:
+            files = {
+                "file": (ccp_file_name, file, "application/octet-stream")
+            }
+            form_data = {
+                "pid": str(payload.pid),
+                "name": ccp_file_name
+            }
+            logging.info(f"Sending CCP file to Storage Server: {storage_url}")
+            response = requests.post(storage_url, files=files, data=form_data)
+        if response.status_code != 200:
+            logging.error(f"Failed to upload CCP file: {response.text}")
+            raise HTTPException(status_code=500, detail="Failed to upload CCP file to Storage Server")
+        logging.info(f"CCP file uploaded successfully: {ccp_file_name}")
+    except FileNotFoundError:
+        logging.error(f"CCP file not found: {ccp_file_path}")
+        raise HTTPException(status_code=404, detail="CCP file not found")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request error during CCP file upload: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Request to storage server failed: {str(e)}")
+    except Exception as e:
+        logging.error(f"Unexpected error during CCP file upload: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during CCP file upload: {str(e)}")
+
     logging.info(f"Pushing /data/ccp/{payload.pid}.ccp file to Next.JS Server")
     output_path = f"/data/ccp/{payload.pid}.ccp"
     push.push_to_nextjs(output_path, f"{payload.pid}.ccp")
@@ -257,6 +292,7 @@ async def api_project_export(payload: ccp_payload):
     logging.info(f"Deleting /data/ccp/{payload.pid} folder")
     try:
         shutil.rmtree(f'/data/ccp/{payload.pid}')
+        os.remove(f'/data/ccp/{payload.pid}.ccp')
     except Exception as e:
         logging.error(f"Failed to delete folder: {str(e)}")
     return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} exported successfully."}
