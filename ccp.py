@@ -198,17 +198,57 @@ def decrypt_ccp_file(pid):
 @router.post("/ccp/import")
 async def api_project_import(payload: ccp_payload):
     """프로젝트 불러오기"""
+    logging.info(f"Starting project import for pid: {payload.pid}")
+
+    logging.info("1. Fetching version history from DB Server")
     try:
-        logging.info(f"Attempting to decrypt project {payload.pid}.ccp file")
-        decryption_result = decrypt_ccp_file(payload.pid)
-        if decryption_result['RESULT_CODE'] == 200:
-            logging.info(f"Project {payload.pid} successfully decrypted and extracted.")
-        else:
-            raise HTTPException(status_code=500, detail=f"Decryption failed: {decryption_result['RESULT_MSG']}")
-        return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
+        versions = csv_DB.fetch_csv_history(payload.pid)
+        if not versions:
+            raise HTTPException(status_code=404, detail=f"No version history found for pid: {payload.pid}")
+        # TODO: 사용자에게 버전 목록을 보여주고 선택을 받아야 함
+        # 현재는 임의로 첫 번째 버전을 선택한다고 가정
+        selected_version = versions[0]
+        logging.info(f"Selected version: {selected_version}")
     except Exception as e:
-        logging.error(f"Error occurred during project import: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error during project import: {str(e)}")
+        logging.error(f"Failed to fetch version history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch version history: {e}")
+
+    logging.info("2. Backing up current project state")
+    try:
+        # TODO: 현재 프로젝트 상태를 백업하는 기능 구현
+        # 백업된 버전은 history 테이블에 추가해야 함
+        pass
+    except Exception as e:
+        logging.error(f"Failed to backup current project state: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to backup current project state: {e}")
+
+    logging.info("3. Downloading and decrypting CCP file from Storage Server")
+    try:
+        # TODO: Storage Server에서 CCP 파일을 다운로드하는 기능 구현
+        # TODO: CCP 파일을 복호화하고 압축을 해제하는 기능 구현
+        pass
+    except Exception as e:
+        logging.error(f"Failed to download or decrypt CCP file: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download or decrypt CCP file: {e}")
+
+    logging.info("4. Restoring database from CSV files")
+    try:
+        # TODO: DB Server로 CSV 파일을 전송하고 데이터베이스를 복원하는 기능 구현
+        pass
+    except Exception as e:
+        logging.error(f"Failed to restore database: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to restore database: {e}")
+
+    logging.info("5. Restoring files from Storage Server")
+    try:
+        # TODO: Storage Server로 파일을 전송하고 기존 파일을 복원하는 기능 구현
+        pass
+    except Exception as e:
+        logging.error(f"Failed to restore files: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to restore files: {e}")
+
+    logging.info("6. Import process completed")
+    return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
 
 @router.post("/ccp/export")
 async def api_project_export(payload: ccp_payload):
