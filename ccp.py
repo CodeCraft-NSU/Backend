@@ -428,7 +428,7 @@ async def api_project_import(payload: ccp_payload):
         logging.info("OUTPUT files restored successfully on Storage Server")
         os.remove(archive_path)
     except Exception as e:
-        print("skipped")
+        logging.info(f"Any files not found.. skipped.")
         # logging.error(f"Failed to restore OUTPUT files for project {payload.pid}: {str(e)}")
         # raise HTTPException(status_code=500, detail=f"Failed to restore OUTPUT files: {str(e)}")
         
