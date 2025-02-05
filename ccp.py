@@ -556,8 +556,10 @@ async def api_project_export(payload: ccp_payload):
         raise HTTPException(status_code=500, detail=f"Failed to save backup record: {str(e)}")
     logging.info("Uploading backup CCP file to Storage Server")
     try:
+        history = csv_DB.fetch_csv_history(payload.pid)
+        version = str(max(record['ver'] for record in history))
         ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
-        ccp_file_name = f"{payload.pid}_{backup_ver}.ccp"
+        ccp_file_name = f"{payload.pid}_{version}.ccp"
         storage_url = "http://192.168.50.84:10080/api/ccp/pull"
         logging.info(f"Reading backup CCP file: {ccp_file_path}")
         with open(ccp_file_path, "rb") as file:
@@ -579,11 +581,11 @@ async def api_project_export(payload: ccp_payload):
         logging.error(f"Unexpected error during backup CCP file upload: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error during backup CCP file upload: {str(e)}")
     logging.info(f"Deleting /data/ccp/{payload.pid} folder and backup CCP file")
-    # try:
-    #     shutil.rmtree(f'/data/ccp/{payload.pid}')
-    #     os.remove(f'/data/ccp/{payload.pid}.ccp')
-    # except Exception as e:
-    #     logging.error(f"Failed to delete folder or backup CCP file for project {payload.pid}: {str(e)}")
+    try:
+        shutil.rmtree(f'/data/ccp/{payload.pid}')
+        os.remove(f'/data/ccp/{payload.pid}.ccp')
+    except Exception as e:
+        logging.error(f"Failed to delete folder or backup CCP file for project {payload.pid}: {str(e)}")
     return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} exported successfully."}
 
 @router.post("/ccp/del_history")
