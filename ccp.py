@@ -28,6 +28,7 @@ class ccp_payload(BaseModel):
     pid: int = None
     univ_id: int = None
     msg: str = None
+    ver: int = None
 
 def handle_db_result(result):
     if isinstance(result, Exception):
@@ -197,104 +198,135 @@ def decrypt_ccp_file(pid):
 
 @router.post("/ccp/import")
 async def api_project_import(payload: ccp_payload):
-    """프로젝트 불러오기"""
-    logging.info(f"Starting project import for pid: {payload.pid}")
+    """프로젝트 복원 기능"""
 
-    logging.info("1. Fetching version history from DB Server")
+    logging.info(f"Step 1: Retrieving version history for project {payload.pid}")
     try:
-        versions = csv_DB.fetch_csv_history(payload.pid)
-        if not versions:
-            raise HTTPException(status_code=404, detail=f"No version history found for pid: {payload.pid}")
-        # TODO: 사용자에게 버전 목록을 보여주고 선택을 받아야 함
-        # 현재는 임의로 첫 번째 버전을 선택한다고 가정
-        selected_version = versions[0]
-        logging.info(f"Selected version: {selected_version}")
+        history = csv_DB.fetch_csv_history(payload.pid)
+        if not history or len(history) == 0:
+            raise Exception(f"No history records found for project {payload.pid}")
+        highest_ver = max(record['ver'] for record in history)
+        logging.info(f"Highest version for project {payload.pid} is {highest_ver}")
+        selected_version = None
+        for record in history:
+            if record['ver'] == payload.ver:
+                selected_version = record['ver']
+                break
+        if selected_version is None:
+            raise Exception(f"Version {payload.ver} not found in project history")
+        logging.info(f"Selected version {payload.ver} found in project history")
     except Exception as e:
-        logging.error(f"Failed to fetch version history: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch version history: {e}")
+        logging.error(f"Failed to retrieve version history for project {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve version history: {str(e)}")
 
-    logging.info("2. Backing up current project state")
+    #return {"Highest version": highest_ver, "selected version": selected_version} # 디버깅용
+
+    logging.info(f"Step 2: Backing up current project state for project {payload.pid}")
     try:
-        # TODO: 현재 프로젝트 상태를 백업하는 기능 구현
-        # 백업된 버전은 history 테이블에 추가해야 함
-        pass
+        backup_ver = csv_DB.insert_csv_history(
+            payload.pid,
+            payload.univ_id,
+            f"Revert {{auto_backup}} to {payload.ver}"
+        )
+        if backup_ver is None:
+            raise Exception("Backup failed")
+        logging.info(f"Backup completed with version {backup_ver}")
     except Exception as e:
-        logging.error(f"Failed to backup current project state: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to backup current project state: {e}")
+        logging.error(f"Failed to backup current state for project {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to backup current state: {str(e)}")
 
-    logging.info("3. Downloading and decrypting CCP file from Storage Server")
+    # logging.info(f"Step 3: Downloading CCP file for version {payload.ver} from Storage server")
+    # try:
+    #     ccp_file_path = f"/data/ccp/{payload.pid}_{payload.ver}.ccp"
+    #     logging.info(f"CCP file downloaded: {ccp_file_path}")
+    # except Exception as e:
+    #     logging.error(f"Failed to download CCP file for project {payload.pid}: {str(e)}")
+    #     raise HTTPException(status_code=500, detail=f"Failed to download CCP file: {str(e)}")
+
+    # logging.info(f"Step 4: Decrypting and extracting CCP file for project {payload.pid}")
+    # try:
+    #     result = decrypt_ccp_file(payload.pid)
+    #     if result.get("RESULT_CODE", 500) != 200:
+    #         raise Exception(result.get("RESULT_MSG", "Unknown error during decryption"))
+    #     logging.info("Decryption and extraction completed successfully")
+    # except Exception as e:
+    #     logging.error(f"Failed to decrypt and extract CCP file for project {payload.pid}: {str(e)}")
+    #     raise HTTPException(status_code=500, detail=f"Failed to decrypt CCP file: {str(e)}")
+
+    # logging.info(f"Step 5: Restoring DATABASE CSV files for project {payload.pid}")
+    # try:
+    #     logging.info("DATABASE CSV files restored successfully")
+    # except Exception as e:
+    #     logging.error(f"Failed to restore DATABASE CSV files for project {payload.pid}: {str(e)}")
+    #     raise HTTPException(status_code=500, detail=f"Failed to restore DATABASE CSV files: {str(e)}")
+
+    # logging.info(f"Step 6: Restoring OUTPUT files for project {payload.pid}")
+    # try:
+    #     logging.info("OUTPUT files restored successfully")
+    # except Exception as e:
+    #     logging.error(f"Failed to restore OUTPUT files for project {payload.pid}: {str(e)}")
+    #     raise HTTPException(status_code=500, detail=f"Failed to restore OUTPUT files: {str(e)}")
+
+    # logging.info("Project import process completed successfully")
+    # return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
+
+def initialize_folder(pid: int):
+    """백업/추출을 위한 폴더를 초기화한다."""
+    logging.info(f"Initializing folder /data/ccp/{pid}")
     try:
-        # TODO: Storage Server에서 CCP 파일을 다운로드하는 기능 구현
-        # TODO: CCP 파일을 복호화하고 압축을 해제하는 기능 구현
-        pass
+        os.makedirs(f'/data/ccp/{pid}', exist_ok=True)
+        os.makedirs(f'/data/ccp/{pid}/DATABASE', exist_ok=True)
+        os.makedirs(f'/data/ccp/{pid}/OUTPUT', exist_ok=True)
     except Exception as e:
-        logging.error(f"Failed to download or decrypt CCP file: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to download or decrypt CCP file: {e}")
-
-    logging.info("4. Restoring database from CSV files")
-    try:
-        # TODO: DB Server로 CSV 파일을 전송하고 데이터베이스를 복원하는 기능 구현
-        pass
-    except Exception as e:
-        logging.error(f"Failed to restore database: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to restore database: {e}")
-
-    logging.info("5. Restoring files from Storage Server")
-    try:
-        # TODO: Storage Server로 파일을 전송하고 기존 파일을 복원하는 기능 구현
-        pass
-    except Exception as e:
-        logging.error(f"Failed to restore files: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to restore files: {e}")
-
-    logging.info("6. Import process completed")
-    return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
-
-@router.post("/ccp/export")
-async def api_project_export(payload: ccp_payload):
-    """프로젝트 추출 기능"""
-
-    logging.info(f"Initializing folder /data/ccp/{payload.pid}")
-    try:
-        os.makedirs(f'/data/ccp/{payload.pid}', exist_ok=True)
-        os.makedirs(f'/data/ccp/{payload.pid}/DATABASE', exist_ok=True)
-        os.makedirs(f'/data/ccp/{payload.pid}/OUTPUT', exist_ok=True)
-    except Exception as e:
-        logging.error(f"Failed to initialize folder for project {payload.pid}: {str(e)}")
+        logging.error(f"Failed to initialize folder for project {pid}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to initialize folder: {str(e)}")
 
+def export_database_csv(payload: ccp_payload):
+    """DB 서버의 데이터를 CSV 파일로 내보낸다."""
     logging.info(f"Exporting the database to CSV files for project ID: {payload.pid}")
     try:
         result = csv_DB.export_csv(payload.pid, payload.univ_id, payload.msg)
     except Exception as e:
-        logging.error(f"Failed to export db: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to export db: {e}")
+        logging.error(f"Failed to export DB: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to export DB: {e}")
     if not handle_db_result(result):
-        return {"RESULT_CODE": 500, "RESULT_MSG": "Failed to export db"}
+        raise HTTPException(status_code=500, detail="Failed to export DB")
+    return result
 
-    logging.info(f"Copying the OUTPUT files from Storage Server to /data/ccp/{payload.pid}/OUTPUT")
+async def download_output_files(pid: int):
+    """Storage 서버에서 OUTPUT 파일들을 다운로드 받아 지정 폴더에 저장한다."""
+    logging.info(f"Copying the OUTPUT files from Storage Server to /data/ccp/{pid}/OUTPUT")
     try:
-        result = await pull_storage_server(payload.pid, f'/data/ccp/{payload.pid}/OUTPUT')
+        result = await pull_storage_server(pid, f'/data/ccp/{pid}/OUTPUT')
         if result['RESULT_CODE'] != 200:
             raise HTTPException(status_code=500, detail=result['RESULT_MSG'])
     except Exception as e:
-        logging.error(f"Failed to download OUTPUT files from storage server: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to download OUTPUT files from storage server: {str(e)}")
+        logging.error(f"Failed to download OUTPUT files from Storage server: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to download OUTPUT files: {str(e)}")
+    return result
 
-    logging.info(f"Encrypting /data/ccp/{payload.pid} folder to /data/ccp/{payload.pid}.ccp")
+def encrypt_project_folder(pid: int):
+    """지정 폴더를 암호화하여 CCP 파일로 생성한다."""
+    logging.info(f"Encrypting /data/ccp/{pid} folder to /data/ccp/{pid}.ccp")
     try:
-        encryption_result = encrypt_ccp_file(payload.pid)
+        encryption_result = encrypt_ccp_file(pid)
         if not encryption_result:
-            raise HTTPException(status_code=500, detail=f"Failed to encrypt project folder for pid {payload.pid}")
+            raise HTTPException(status_code=500, detail=f"Failed to encrypt project folder for pid {pid}")
     except Exception as e:
-        logging.error(f"Error occurred during encryption process for pid {payload.pid}: {str(e)}")
+        logging.error(f"Error during encryption process for pid {pid}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error during encryption: {str(e)}")
+    return encryption_result
 
-    logging.info("Saving data to MySQL database")
+def save_history_record(payload: ccp_payload) -> int:
+    """DB 서버에 히스토리 레코드를 저장한다."""
+    logging.info("Saving data to MySQL database (history record)")
     ver = csv_DB.insert_csv_history(payload.pid, payload.univ_id, payload.msg)
     if ver is None:
         raise HTTPException(status_code=500, detail="Failed to insert history record")
+    return ver
 
+def upload_ccp_file(payload: ccp_payload, ver: int):
+    """생성된 CCP 파일을 Storage 서버에 업로드한다."""
     logging.info("Uploading CCP file to Storage Server")
     ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
     ccp_file_name = f"{payload.pid}_{ver}.ccp"
@@ -302,13 +334,8 @@ async def api_project_export(payload: ccp_payload):
     try:
         logging.info(f"Reading CCP file: {ccp_file_path}")
         with open(ccp_file_path, "rb") as file:
-            files = {
-                "file": (ccp_file_name, file, "application/octet-stream")
-            }
-            form_data = {
-                "pid": str(payload.pid),
-                "name": ccp_file_name
-            }
+            files = {"file": (ccp_file_name, file, "application/octet-stream")}
+            form_data = {"pid": str(payload.pid), "name": ccp_file_name}
             logging.info(f"Sending CCP file to Storage Server: {storage_url}")
             response = requests.post(storage_url, files=files, data=form_data)
         if response.status_code != 200:
@@ -325,16 +352,32 @@ async def api_project_export(payload: ccp_payload):
         logging.error(f"Unexpected error during CCP file upload: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error during CCP file upload: {str(e)}")
 
-    logging.info(f"Pushing /data/ccp/{payload.pid}.ccp file to Next.JS Server")
-    output_path = f"/data/ccp/{payload.pid}.ccp"
-    push.push_to_nextjs(output_path, f"{payload.pid}.ccp")
-
-    logging.info(f"Deleting /data/ccp/{payload.pid} folder")
+def cleanup_project_folder(pid: int):
+    """작업 후 생성된 폴더와 파일들을 정리한다."""
+    logging.info(f"Deleting /data/ccp/{pid} folder and CCP file")
     try:
-        shutil.rmtree(f'/data/ccp/{payload.pid}')
-        os.remove(f'/data/ccp/{payload.pid}.ccp')
+        shutil.rmtree(f'/data/ccp/{pid}')
+        os.remove(f'/data/ccp/{pid}.ccp')
     except Exception as e:
-        logging.error(f"Failed to delete folder: {str(e)}")
+        logging.error(f"Failed to delete folder or CCP file for project {pid}: {str(e)}")
+
+@router.post("/ccp/export")
+async def api_project_export(payload: ccp_payload):
+    """프로젝트 추출(Export) 기능 분리된 함수들을 순차적으로 호출함."""
+    # 1. 폴더 초기화
+    initialize_folder(payload.pid)
+    # 2. DB 데이터를 CSV 파일로 내보내기
+    export_database_csv(payload)
+    # 3. OUTPUT 파일 다운로드
+    await download_output_files(payload.pid)
+    # 4. 폴더 암호화 -> CCP 파일 생성
+    encrypt_project_folder(payload.pid)
+    # 5. DB 히스토리 기록 저장 (히스토리 레코드의 반환값을 ver로 사용)
+    ver = save_history_record(payload)
+    # 6. CCP 파일을 Storage 서버에 업로드
+    upload_ccp_file(payload, ver)
+    # 7. 작업 완료 후 폴더 및 생성된 CCP 파일 삭제
+    cleanup_project_folder(payload.pid)
     return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} exported successfully."}
 
 @router.post("/ccp/del_history")
