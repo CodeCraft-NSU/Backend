@@ -233,7 +233,7 @@ async def api_project_import(payload: ccp_payload):
 
     logging.info(f"Exporting the database to CSV files for project ID: {payload.pid}")
     try:
-        result = csv_DB.export_csv(payload.pid, payload.univ_id, payload.msg)
+        result = csv_DB.export_csv(payload.pid)
     except Exception as e:
         logging.error(f"Failed to export DB during backup: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to export DB during backup: {str(e)}")
@@ -401,7 +401,7 @@ def export_database_csv(payload: ccp_payload):
     """DB 서버의 데이터를 CSV 파일로 내보낸다."""
     logging.info(f"Exporting the database to CSV files for project ID: {payload.pid}")
     try:
-        result = csv_DB.export_csv(payload.pid, payload.univ_id, payload.msg)
+        result = csv_DB.export_csv(payload.pid)
     except Exception as e:
         logging.error(f"Failed to export DB: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to export DB: {e}")
@@ -492,12 +492,38 @@ async def api_project_export(payload: ccp_payload):
 
     logging.info(f"Exporting the database to CSV files for project ID: {payload.pid}")
     try:
-        result = csv_DB.export_csv(payload.pid, payload.univ_id, payload.msg)
+        result = csv_DB.export_csv(payload.pid)
     except Exception as e:
         logging.error(f"Failed to export DB during backup: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to export DB during backup: {str(e)}")
     if not handle_db_result(result):
         raise HTTPException(status_code=500, detail="Failed to export DB during backup")
+
+    logging.info(f"Copying the CSV files from CD to /data/ccp/{payload.pid}/DATABASE for backup")
+    try:
+        API_SERVER_URL = "http://192.168.50.84:70"
+        url = f"{API_SERVER_URL}/api/ccp/pull_db"
+        payload_dict = {"pid": payload.pid}
+        result = requests.post(url, json=payload_dict)
+        response_data = result.json()
+        if result.status_code != 200:
+            raise HTTPException(status_code=500, detail=response_data.get("message", "Unknown error"))
+    except Exception as e:
+        logging.error(f"Failed to download CSV files during backup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to download CSV files during backup: {str(e)}")
+
+    logging.info(f"Clean up the CSV folder from CD")
+    try:
+        API_SERVER_URL = "http://192.168.50.84:70"
+        url = f"{API_SERVER_URL}/api/ccp/clean_db"
+        payload_dict = {"pid": payload.pid}
+        result = requests.post(url, json=payload_dict)
+        response_data = result.json()
+        if result.status_code != 200:
+            raise HTTPException(status_code=500, detail=response_data.get("message", "Unknown error"))
+    except Exception as e:
+        logging.error(f"Failed to clean up CSV folder during backup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to clean up CSV folder during backup: {str(e)}")
 
     logging.info(f"Copying the OUTPUT files from Storage Server to /data/ccp/{payload.pid}/OUTPUT for backup")
     try:
@@ -553,11 +579,11 @@ async def api_project_export(payload: ccp_payload):
         logging.error(f"Unexpected error during backup CCP file upload: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error during backup CCP file upload: {str(e)}")
     logging.info(f"Deleting /data/ccp/{payload.pid} folder and backup CCP file")
-    try:
-        shutil.rmtree(f'/data/ccp/{payload.pid}')
-        os.remove(f'/data/ccp/{payload.pid}.ccp')
-    except Exception as e:
-        logging.error(f"Failed to delete folder or backup CCP file for project {payload.pid}: {str(e)}")
+    # try:
+    #     shutil.rmtree(f'/data/ccp/{payload.pid}')
+    #     os.remove(f'/data/ccp/{payload.pid}.ccp')
+    # except Exception as e:
+    #     logging.error(f"Failed to delete folder or backup CCP file for project {payload.pid}: {str(e)}")
     return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} exported successfully."}
 
 @router.post("/ccp/del_history")
