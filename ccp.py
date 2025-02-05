@@ -196,6 +196,39 @@ def decrypt_ccp_file(pid):
         logging.error(f"Error during decryption process for pid {pid}: {str(e)}")
         return {"RESULT_CODE": 500, "RESULT_MSG": f"Decryption failed: {str(e)}"}
 
+def build_csv_dict(pid):
+    source_dir = f"/data/ccp/{pid}/DATABASE"
+    target_prefix = "/var/lib/mysql/csv/"
+    prefix_mapping = {
+        "project_user": "project_user",
+        "student": "student",
+        "professor": "professor",
+        "project": "project",
+        "permission": "permission",
+        "work": "work",
+        "progress": "progress",
+        "doc_rep": "doc_report",
+        "doc_s": "doc_summary",
+        "doc_r": "doc_require",
+        "doc_m": "doc_meeting",
+        "doc_t": "doc_test",
+        "doc_o": "doc_other"
+    }
+    csv_dict = {}
+    try:
+        files = os.listdir(source_dir)
+    except FileNotFoundError:
+        raise Exception(f"디렉터리 {source_dir} 가 존재하지 않습니다.")
+    sorted_prefixes = sorted(prefix_mapping.keys(), key=lambda x: len(x), reverse=True)
+    for filename in files:
+        if filename.endswith(".csv"):
+            for prefix in sorted_prefixes:
+                if filename.startswith(prefix):
+                    key = prefix_mapping[prefix]
+                    csv_dict[key] = os.path.join(target_prefix, filename)
+                    break
+    return csv_dict
+
 @router.post("/ccp/import")
 async def api_project_import(payload: ccp_payload):
     """프로젝트 복원 기능"""
@@ -333,26 +366,40 @@ async def api_project_import(payload: ccp_payload):
         logging.error(f"Step 4 failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Step 4 failed: {str(e)}")
 
-    logging.info(f"Step 5: Restoring DATABASE CSV files for project {payload.pid}")
-    # try: # 코드 검증 전, 스킵
-    #     database_dir = f"/data/ccp/{payload.pid}/DATABASE"
-    #     if not os.path.exists(database_dir):
-    #         raise Exception("DATABASE folder not found in extracted files")
-    #     csv_files = {}
-    #     for filename in os.listdir(database_dir):
-    #         if filename.endswith(".csv"):
-    #             parts = filename.split('_')
-    #             if len(parts) >= 3:
-    #                 key = parts[0]
-    #                 csv_files[key] = os.path.join(database_dir, filename)
-    #     logging.info(f"CSV files to import: {csv_files}")
-    #     import_result = csv_DB.import_csv(csv_files, payload.pid)
-    #     if import_result is not True:
-    #         raise Exception("DB import_csv function returned failure")
-    #     logging.info("DATABASE CSV files restored successfully")
-    # except Exception as e:
-    #     logging.error(f"Failed to restore DATABASE CSV files for project {payload.pid}: {str(e)}")
-    #     raise HTTPException(status_code=500, detail=f"Failed to restore DATABASE CSV files: {str(e)}")
+    logging.info(f"Step 5: Pushing DATABASE CSV files to DB server for project {payload.pid}")
+    db_push_url = "http://192.168.50.84:70/api/ccp/push_db"
+    database_dir = f"/data/ccp/{payload.pid}/DATABASE"
+    if not os.path.exists(database_dir):
+        raise Exception("DATABASE folder not found in extracted files")
+    try:
+        files_transferred = []
+        for filename in os.listdir(database_dir):
+            if filename.endswith(".csv"):
+                file_path = os.path.join(database_dir, filename)
+                with open(file_path, "rb") as f:
+                    files_payload = {"file": (filename, f, "application/octet-stream")}
+                    data_payload = {"pid": str(payload.pid)}
+                    response = requests.post(db_push_url, files=files_payload, data=data_payload)
+                    if response.status_code != 200:
+                        raise Exception(f"Failed to push file {filename}: {response.text}")
+                    else:
+                        files_transferred.append(filename)
+        logging.info(f"Successfully pushed files to DB server: {files_transferred}")
+    except Exception as e:
+        logging.error(f"Failed to push DATABASE CSV files to DB server for project {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to push DATABASE CSV files to DB server: {str(e)}")
+
+    logging.info(f"Step 5.1: Restoring DATABASE CSV files for project {payload.pid}")
+    try:
+        csv_files = build_csv_dict(payload.pid)
+        logging.info(f"CSV files to import: {csv_files}")
+        import_result = csv_DB.import_csv(csv_files, payload.pid)
+        if import_result is not True:
+            raise Exception("DB import_csv function returned failure")
+        logging.info("DATABASE CSV files restored successfully")
+    except Exception as e:
+        logging.error(f"Failed to restore DATABASE CSV files for project {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to restore DATABASE CSV files: {str(e)}")
 
     logging.info(f"Step 6: Restoring OUTPUT files for project {payload.pid}")
     try:
@@ -381,8 +428,9 @@ async def api_project_import(payload: ccp_payload):
         logging.info("OUTPUT files restored successfully on Storage Server")
         os.remove(archive_path)
     except Exception as e:
-        logging.error(f"Failed to restore OUTPUT files for project {payload.pid}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to restore OUTPUT files: {str(e)}")
+        print("skipped")
+        # logging.error(f"Failed to restore OUTPUT files for project {payload.pid}: {str(e)}")
+        # raise HTTPException(status_code=500, detail=f"Failed to restore OUTPUT files: {str(e)}")
         
     logging.info("Project import process completed successfully")
     return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
