@@ -271,8 +271,10 @@ async def api_project_import(payload: ccp_payload):
         raise HTTPException(status_code=500, detail=f"Failed to save backup record: {str(e)}")
     logging.info("Uploading backup CCP file to Storage Server")
     try:
+        history = csv_DB.fetch_csv_history(payload.pid)
+        version = str(max(record['ver'] for record in history))
         ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
-        ccp_file_name = f"{payload.pid}_{backup_ver}.ccp"
+        ccp_file_name = f"{payload.pid}_{version}.ccp"
         storage_url = "http://192.168.50.84:10080/api/ccp/pull"
         logging.info(f"Reading backup CCP file: {ccp_file_path}")
         with open(ccp_file_path, "rb") as file:
