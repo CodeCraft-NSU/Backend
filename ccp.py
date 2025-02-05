@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2025/01/10                                                      
-   업데이트 : 2025/01/25                                      
+   업데이트 : 2025/02/05                                     
                                                                              
    설명     : 프로젝트 Import/Export API 엔드포인트 정의
 """
@@ -205,7 +205,7 @@ async def api_project_import(payload: ccp_payload):
         history = csv_DB.fetch_csv_history(payload.pid)
         if not history or len(history) == 0:
             raise Exception(f"No history records found for project {payload.pid}")
-        highest_ver = max(record['ver'] for record in history)
+        highest_ver = str(int(max(record['ver'] for record in history)) + 1)
         logging.info(f"Highest version for project {payload.pid} is {highest_ver}")
         selected_version = None
         for record in history:
@@ -223,17 +223,85 @@ async def api_project_import(payload: ccp_payload):
 
     logging.info(f"Step 2: Backing up current project state for project {payload.pid}")
     try:
-        backup_ver = csv_DB.insert_csv_history(
-            payload.pid,
-            payload.univ_id,
-            f"Revert {{auto_backup}} to {payload.ver}"
-        )
-        if backup_ver is None:
-            raise Exception("Backup failed")
-        logging.info(f"Backup completed with version {backup_ver}")
+        logging.info(f"Initializing folder /data/ccp/{payload.pid}")
+        os.makedirs(f'/data/ccp/{payload.pid}', exist_ok=True)
+        os.makedirs(f'/data/ccp/{payload.pid}/DATABASE', exist_ok=True)
+        os.makedirs(f'/data/ccp/{payload.pid}/OUTPUT', exist_ok=True)
     except Exception as e:
-        logging.error(f"Failed to backup current state for project {payload.pid}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to backup current state: {str(e)}")
+        logging.error(f"Failed to initialize folder for project {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to initialize folder: {str(e)}")
+
+    logging.info(f"Exporting the database to CSV files for project ID: {payload.pid}")
+    try:
+        result = csv_DB.export_csv(payload.pid, payload.univ_id, payload.msg)
+    except Exception as e:
+        logging.error(f"Failed to export DB during backup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to export DB during backup: {str(e)}")
+    if not handle_db_result(result):
+        raise HTTPException(status_code=500, detail="Failed to export DB during backup")
+
+    logging.info(f"Copying the OUTPUT files from Storage Server to /data/ccp/{payload.pid}/OUTPUT for backup")
+    try:
+        result = await pull_storage_server(payload.pid, f'/data/ccp/{payload.pid}/OUTPUT')
+        if result['RESULT_CODE'] != 200:
+            raise HTTPException(status_code=500, detail=result['RESULT_MSG'])
+    except Exception as e:
+        logging.error(f"Failed to download OUTPUT files during backup: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to download OUTPUT files during backup: {str(e)}")
+    
+    logging.info(f"Encrypting /data/ccp/{payload.pid} folder to create backup CCP file")
+    try:
+        encryption_result = encrypt_ccp_file(payload.pid)
+        if not encryption_result:
+            raise HTTPException(status_code=500, detail=f"Failed to encrypt project folder for backup, pid {payload.pid}")
+    except Exception as e:
+        logging.error(f"Error during encryption for backup, pid {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during encryption for backup: {str(e)}")
+    
+    logging.info("Saving backup record to DB history")
+    try:
+        backup_message = f"Revert {highest_ver} to {payload.ver}"
+        payload.msg = backup_message
+        backup_ver = csv_DB.insert_csv_history(payload.pid, payload.univ_id, payload.msg)
+        if backup_ver is None:
+            raise Exception("Failed to insert backup history record")
+        logging.info(f"Backup history record inserted with version {backup_ver}")
+    except Exception as e:
+        logging.error(f"Failed to save backup record: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save backup record: {str(e)}")
+    logging.info("Uploading backup CCP file to Storage Server")
+    try:
+        ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
+        ccp_file_name = f"{payload.pid}_{backup_ver}.ccp"
+        storage_url = "http://192.168.50.84:10080/api/ccp/pull"
+        logging.info(f"Reading backup CCP file: {ccp_file_path}")
+        with open(ccp_file_path, "rb") as file:
+            files = {"file": (ccp_file_name, file, "application/octet-stream")}
+            form_data = {"pid": str(payload.pid), "name": ccp_file_name}
+            logging.info(f"Sending backup CCP file to Storage Server: {storage_url}")
+            response = requests.post(storage_url, files=files, data=form_data)
+        if response.status_code != 200:
+            logging.error(f"Failed to upload backup CCP file: {response.text}")
+            raise HTTPException(status_code=500, detail="Failed to upload backup CCP file to Storage Server")
+        logging.info(f"Backup CCP file uploaded successfully: {ccp_file_name}")
+    except FileNotFoundError:
+        logging.error(f"Backup CCP file not found: {ccp_file_path}")
+        raise HTTPException(status_code=404, detail="Backup CCP file not found")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request error during backup CCP file upload: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Request error during backup CCP file upload: {str(e)}")
+    except Exception as e:
+        logging.error(f"Unexpected error during backup CCP file upload: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error during backup CCP file upload: {str(e)}")
+    logging.info(f"Deleting /data/ccp/{payload.pid} folder and backup CCP file")
+    try:
+        shutil.rmtree(f'/data/ccp/{payload.pid}')
+        os.remove(f'/data/ccp/{payload.pid}.ccp')
+    except Exception as e:
+        logging.error(f"Failed to delete folder or backup CCP file for project {payload.pid}: {str(e)}")
+    
+    logging.info(f"Step 2: Backup completed with version {backup_ver}")
+    return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully with backup version {backup_ver}."}
 
     # logging.info(f"Step 3: Downloading CCP file for version {payload.ver} from Storage server")
     # try:
