@@ -331,12 +331,26 @@ async def api_project_import(payload: ccp_payload):
         logging.error(f"Step 4 failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Step 4 failed: {str(e)}")
 
-    # logging.info(f"Step 5: Restoring DATABASE CSV files for project {payload.pid}")
-    # try:
-    #     logging.info("DATABASE CSV files restored successfully")
-    # except Exception as e:
-    #     logging.error(f"Failed to restore DATABASE CSV files for project {payload.pid}: {str(e)}")
-    #     raise HTTPException(status_code=500, detail=f"Failed to restore DATABASE CSV files: {str(e)}")
+    logging.info(f"Step 5: Restoring DATABASE CSV files for project {payload.pid}")
+    try:
+        database_dir = f"/data/ccp/{payload.pid}/DATABASE"
+        if not os.path.exists(database_dir):
+            raise Exception("DATABASE folder not found in extracted files")
+        csv_files = {}
+        for filename in os.listdir(database_dir):
+            if filename.endswith(".csv"):
+                parts = filename.split('_')
+                if len(parts) >= 3:
+                    key = parts[0]
+                    csv_files[key] = os.path.join(database_dir, filename)
+        logging.info(f"CSV files to import: {csv_files}")
+        import_result = csv_DB.import_csv(csv_files, payload.pid, payload.univ_id, f"Import from version {payload.ver}")
+        if import_result is not True:
+            raise Exception("DB import_csv function returned failure")
+        logging.info("DATABASE CSV files restored successfully")
+    except Exception as e:
+        logging.error(f"Failed to restore DATABASE CSV files for project {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to restore DATABASE CSV files: {str(e)}")
 
     # logging.info(f"Step 6: Restoring OUTPUT files for project {payload.pid}")
     # try:
