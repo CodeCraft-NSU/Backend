@@ -301,25 +301,35 @@ async def api_project_import(payload: ccp_payload):
         logging.error(f"Failed to delete folder or backup CCP file for project {payload.pid}: {str(e)}")
     
     logging.info(f"Step 2: Backup completed with version {backup_ver}")
-    return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully with backup version {backup_ver}."}
+    # return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully with backup version {backup_ver}."}
 
-    # logging.info(f"Step 3: Downloading CCP file for version {payload.ver} from Storage server")
-    # try:
-    #     ccp_file_path = f"/data/ccp/{payload.pid}_{payload.ver}.ccp"
-    #     logging.info(f"CCP file downloaded: {ccp_file_path}")
-    # except Exception as e:
-    #     logging.error(f"Failed to download CCP file for project {payload.pid}: {str(e)}")
-    #     raise HTTPException(status_code=500, detail=f"Failed to download CCP file: {str(e)}")
-
-    # logging.info(f"Step 4: Decrypting and extracting CCP file for project {payload.pid}")
-    # try:
-    #     result = decrypt_ccp_file(payload.pid)
-    #     if result.get("RESULT_CODE", 500) != 200:
-    #         raise Exception(result.get("RESULT_MSG", "Unknown error during decryption"))
-    #     logging.info("Decryption and extraction completed successfully")
-    # except Exception as e:
-    #     logging.error(f"Failed to decrypt and extract CCP file for project {payload.pid}: {str(e)}")
-    #     raise HTTPException(status_code=500, detail=f"Failed to decrypt CCP file: {str(e)}")
+    logging.info(f"Step 3: Downloading CCP file for selected version {payload.ver} from Storage Server")
+    try:
+        selected_ccp_url = "http://192.168.50.84:10080/api/ccp/push_ccp"
+        params = {"pid": payload.pid, "ver": payload.ver}
+        async with httpx.AsyncClient() as client:
+            response = await client.post(selected_ccp_url, params=params)
+            if response.status_code != 200:
+                raise Exception(f"Storage server returned status {response.status_code}")
+            selected_ccp_file_path = f"/data/ccp/{payload.pid}_{payload.ver}.ccp"
+            with open(selected_ccp_file_path, "wb") as f:
+                f.write(response.content)
+        logging.info(f"CCP file downloaded successfully: {selected_ccp_file_path}")
+    except Exception as e:
+        logging.error(f"Step 3 failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Step 3 failed: {str(e)}")
+    
+    logging.info(f"Step 4: Decrypting and extracting the downloaded CCP file for project {payload.pid}")
+    try:
+        target_ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
+        os.rename(selected_ccp_file_path, target_ccp_file_path)
+        result = decrypt_ccp_file(payload.pid)
+        if result.get("RESULT_CODE", 500) != 200:
+            raise Exception(result.get("RESULT_MSG", "Unknown error during decryption"))
+        logging.info("Decryption and extraction completed successfully")
+    except Exception as e:
+        logging.error(f"Step 4 failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Step 4 failed: {str(e)}")
 
     # logging.info(f"Step 5: Restoring DATABASE CSV files for project {payload.pid}")
     # try:
@@ -431,20 +441,13 @@ def cleanup_project_folder(pid: int):
 
 @router.post("/ccp/export")
 async def api_project_export(payload: ccp_payload):
-    """프로젝트 추출(Export) 기능 분리된 함수들을 순차적으로 호출함."""
-    # 1. 폴더 초기화
+    """프로젝트 추출 기능"""
     initialize_folder(payload.pid)
-    # 2. DB 데이터를 CSV 파일로 내보내기
     export_database_csv(payload)
-    # 3. OUTPUT 파일 다운로드
     await download_output_files(payload.pid)
-    # 4. 폴더 암호화 -> CCP 파일 생성
     encrypt_project_folder(payload.pid)
-    # 5. DB 히스토리 기록 저장 (히스토리 레코드의 반환값을 ver로 사용)
     ver = save_history_record(payload)
-    # 6. CCP 파일을 Storage 서버에 업로드
     upload_ccp_file(payload, ver)
-    # 7. 작업 완료 후 폴더 및 생성된 CCP 파일 삭제
     cleanup_project_folder(payload.pid)
     return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} exported successfully."}
 
