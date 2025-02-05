@@ -344,7 +344,7 @@ async def api_project_import(payload: ccp_payload):
     #                 key = parts[0]
     #                 csv_files[key] = os.path.join(database_dir, filename)
     #     logging.info(f"CSV files to import: {csv_files}")
-    #     import_result = csv_DB.import_csv(csv_files, payload.pid, payload.univ_id, f"Import from version {payload.ver}")
+    #     import_result = csv_DB.import_csv(csv_files, payload.pid)
     #     if import_result is not True:
     #         raise Exception("DB import_csv function returned failure")
     #     logging.info("DATABASE CSV files restored successfully")
