@@ -332,35 +332,71 @@ async def api_project_import(payload: ccp_payload):
         raise HTTPException(status_code=500, detail=f"Step 4 failed: {str(e)}")
 
     logging.info(f"Step 5: Restoring DATABASE CSV files for project {payload.pid}")
-    try:
-        database_dir = f"/data/ccp/{payload.pid}/DATABASE"
-        if not os.path.exists(database_dir):
-            raise Exception("DATABASE folder not found in extracted files")
-        csv_files = {}
-        for filename in os.listdir(database_dir):
-            if filename.endswith(".csv"):
-                parts = filename.split('_')
-                if len(parts) >= 3:
-                    key = parts[0]
-                    csv_files[key] = os.path.join(database_dir, filename)
-        logging.info(f"CSV files to import: {csv_files}")
-        import_result = csv_DB.import_csv(csv_files, payload.pid, payload.univ_id, f"Import from version {payload.ver}")
-        if import_result is not True:
-            raise Exception("DB import_csv function returned failure")
-        logging.info("DATABASE CSV files restored successfully")
-    except Exception as e:
-        logging.error(f"Failed to restore DATABASE CSV files for project {payload.pid}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to restore DATABASE CSV files: {str(e)}")
-
-    # logging.info(f"Step 6: Restoring OUTPUT files for project {payload.pid}")
-    # try:
-    #     logging.info("OUTPUT files restored successfully")
+    # try: # 코드 검증 전, 스킵
+    #     database_dir = f"/data/ccp/{payload.pid}/DATABASE"
+    #     if not os.path.exists(database_dir):
+    #         raise Exception("DATABASE folder not found in extracted files")
+    #     csv_files = {}
+    #     for filename in os.listdir(database_dir):
+    #         if filename.endswith(".csv"):
+    #             parts = filename.split('_')
+    #             if len(parts) >= 3:
+    #                 key = parts[0]
+    #                 csv_files[key] = os.path.join(database_dir, filename)
+    #     logging.info(f"CSV files to import: {csv_files}")
+    #     import_result = csv_DB.import_csv(csv_files, payload.pid, payload.univ_id, f"Import from version {payload.ver}")
+    #     if import_result is not True:
+    #         raise Exception("DB import_csv function returned failure")
+    #     logging.info("DATABASE CSV files restored successfully")
     # except Exception as e:
-    #     logging.error(f"Failed to restore OUTPUT files for project {payload.pid}: {str(e)}")
-    #     raise HTTPException(status_code=500, detail=f"Failed to restore OUTPUT files: {str(e)}")
+    #     logging.error(f"Failed to restore DATABASE CSV files for project {payload.pid}: {str(e)}")
+    #     raise HTTPException(status_code=500, detail=f"Failed to restore DATABASE CSV files: {str(e)}")
 
-    # logging.info("Project import process completed successfully")
-    # return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
+    logging.info(f"Step 6: Restoring OUTPUT files for project {payload.pid}")
+    try:
+        # OUTPUT 폴더 경로: /data/ccp/{pid}/OUTPUT
+        output_folder = f"/data/ccp/{payload.pid}/OUTPUT"
+        # 실제 복원 대상이 되는 폴더가 output_folder 내부에 {pid}라는 이름으로 존재한다고 가정함.
+        target_folder = os.path.join(output_folder, str(payload.pid))
+        if not os.path.exists(target_folder):
+            raise Exception("Expected subfolder (named as pid) not found in OUTPUT folder")
+        
+        # tar.gz 아카이브 파일 경로 (임시 생성)
+        archive_path = f"/data/ccp/{payload.pid}_output.tar.gz"
+        
+        # tar 아카이브 생성: target_folder 내부의 내용만, 상대 경로로 추가한다.
+        with tarfile.open(archive_path, "w:gz") as tar:
+            for root, dirs, files in os.walk(target_folder):
+                for file in files:
+                    full_path = os.path.join(root, file)
+                    # target_folder를 기준으로 상대 경로 계산 → 이 경로가 tar 파일 내부의 경로가 됨.
+                    rel_path = os.path.relpath(full_path, target_folder)
+                    tar.add(full_path, arcname=rel_path)
+        logging.info(f"Archived OUTPUT folder to {archive_path}")
+        
+        # Storage Server의 /api/ccp/pull_output 엔드포인트로 파일 업로드
+        pull_output_url = "http://192.168.50.84:10080/api/ccp/pull_output"
+        archive_filename = f"{payload.pid}_output.tar.gz"
+        with open(archive_path, "rb") as file:
+            files = {"file": (archive_filename, file, "application/gzip")}
+            # API 서버에서는 pid와 파일명을 함께 전달 (Storage Server에서 폴더 내부 파일만 정리한 후 압축 해제)
+            form_data = {"pid": str(payload.pid), "name": archive_filename}
+            logging.info(f"Uploading OUTPUT archive to Storage Server: {pull_output_url}")
+            response = requests.post(pull_output_url, files=files, data=form_data)
+        if response.status_code != 200:
+            logging.error(f"Failed to upload OUTPUT archive: {response.text}")
+            raise Exception("Failed to upload OUTPUT archive to Storage Server")
+        logging.info("OUTPUT files restored successfully on Storage Server")
+        
+        # 업로드 후 임시로 생성한 아카이브 파일 삭제
+        os.remove(archive_path)
+    except Exception as e:
+        logging.error(f"Failed to restore OUTPUT files for project {payload.pid}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to restore OUTPUT files: {str(e)}")
+
+    logging.info("Project import process completed successfully")
+    return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
+    # 복원 실패 시 revert 기능 추가해야 함
 
 def initialize_folder(pid: int):
     """백업/추출을 위한 폴더를 초기화한다."""
