@@ -174,14 +174,14 @@ async def api_reconnect_gpt(payload: llm_payload):
         raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
 
 def create_gpt_txt(pid):
-    contents = prompt_init + "\n\n" + llm_init(payload.pid) + "\n\n"
+    contents = prompt_init + "\n\n" + llm_init(pid) + "\n\n"
     save_llm_data(pid, contents)
 
 @router.post("/llm/interact")
 async def api_interact_gpt(payload: llm_payload):
     # ChatGPT와 세션을 맺는 기능 구현 #
 
-    gpt_chat_path = f"gpt/{pid}.txt"
+    gpt_chat_path = f"gpt/{payload.pid}.txt"
     if not os.path.isfile(gpt_chat_path): # 이전 프롬프트 기록이 없다면
         create_gpt_txt(payload.pid) # 프롬프트 기록 생성
 
