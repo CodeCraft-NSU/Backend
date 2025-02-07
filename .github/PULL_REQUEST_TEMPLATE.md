@@ -1,3 +1,11 @@
+---
+name: "PR - General"
+about: "프로젝트 개발 및 버그 수정에 사용할 템플릿"
+title: ""
+labels: []
+assignees: []
+---
+
 ## Summary
 - Please enter Simple Summary of Pull Request. Korean or English is acceptable (Delete this description when Submit)
 

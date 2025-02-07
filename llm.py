@@ -37,7 +37,7 @@ prompt_init = """
       CodeCraft PMS (이하 PMS)는 Project Management System으로서, 기존의 서비스로는 대학생이 제대로 사용하기 힘들었다는 것을 개선하기 위해 만든 서비스이다.
 
       너는 이 PMS를 사용하는 대학생들에게 프로젝트를 진행하는 데 도움을 주기 위해 사용될 것이다.
-      모든 응답은 무조건 한국어로 답해주어야 하며, PMS와 관련되지 않은 질문은 모두 'PMS와 관련된 질문을 해주세요.'라고 응답한다.
+      모든 응답은 무조건 한국어로 답해주어야 한다.
 
       이 PMS는 코드보단 산출물 관리를 중점으로 진행하며, 다루게 될 산출물은 다음과 같다.
       WBS, 개요서, 회의록, 테스트케이스, 요구사항 명세서, 보고서, SOW, System Architecture, Application Architecture, 메뉴 구성도, 벤치마킹, 역량점검, DB 설계서, DB 명세서, DB 정의서, DFD, 단위테스트, 발표자료, 통합테스트, 프로젝트 계획서, 프로젝트 명세서
@@ -174,7 +174,7 @@ async def api_reconnect_gpt(payload: llm_payload):
         raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
 
 def create_gpt_txt(pid):
-    contents = prompt_init + "\n\n" + llm_init(pid) + "\n\n"
+    contents = prompt_init + "\n\n" + llm_init(pid) + "\n\n이제 PMS 사용자가 입력한 프롬프트를 전달해줄텐데, 이 프롬프트가 PMS와 관련되지 않은 질문인 경우 'PMS와 관련된 질문을 해주세요.'라고 응답해.\n\n"
     save_llm_data(pid, contents)
 
 @router.post("/llm/interact")
