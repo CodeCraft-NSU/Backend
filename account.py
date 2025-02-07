@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2024/11/24                                              
+   업데이트 : 2025/02/04                                          
                                                                              
    설명     : 계정 생성, 로그인, 세션 관리를 위한 API 엔드포인트 정의
 """
@@ -45,6 +45,16 @@ class Usrpm_Payload(BaseModel):
 class Checksession_Payload(BaseModel):
     user_id: str
     token: str
+
+class AccCheck_Payload(BaseModel):
+    univ_id: int
+    name: str
+    email: str
+    user_id: str
+
+class PwReset_Payload(BaseModel):
+    univ_id: int
+    pw: str
 
 def generate_token():
     """랜덤한 15자리 토큰 생성"""
@@ -132,3 +142,41 @@ async def api_acc_delacc_post(payload: DelAcc_Payload):
             raise HTTPException(status_code=500, detail="Account deletion failed")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unhandled exception during account deletion: {str(e)}")
+
+@router.post("/acc/checkacc")
+async def api_acc_check(payload: AccCheck_Payload):
+    """
+    비밀번호 리셋 전 정보 확인 함수
+    비밀번호 찾기 기능의 경우, 먼저 이 엔드포인트를 통해 Return 값이 200인지 확인 후,
+    맞다면 api_acc_pwreset 함수 실행
+    """
+    try:
+        result = account_DB.find_user_pw(
+            univ_id = payload.univ_id,
+            name = payload.name,
+            email = payload.email,
+            id = payload.user_id
+        )
+        if result is True:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "OK"}
+        else:
+            # raise HTTPException(status_code=500, detail="Account validation failed")
+            return {"RESULT_CODE": 400, "RESULT_MSG": "Account validation failed"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unhandled exception during account validation: {str(e)}")
+
+@router.post("/acc/resetpw")
+async def api_acc_pwreset(payload: PwReset_Payload):
+    """비밀번호 리셋(변경) 함수"""
+    try:
+        result = account_DB.edit_user_pw(
+            payload.univ_id,
+            payload.pw
+        )
+        if result is True:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "OK"}
+        else:
+            # raise HTTPException(status_code=500, detail="Password update failed")
+            return {"RESULT_CODE": 400, "RESULT_MSG": "Password update failed"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unhandled exception while updating password: {str(e)}")

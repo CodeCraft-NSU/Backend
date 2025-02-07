@@ -203,7 +203,7 @@ def process_reqspec(doc_r_no):
     output_path = f"doc_conv/요구사항_{doc_r_no}.docx"
     doc.save(output_path)
 
-    push.push_to_nextjs(output_path, f"요구사항_{doc_s_no}.docx")
+    push.push_to_nextjs(output_path, f"요구사항_{doc_r_no}.docx")
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!"}
 
@@ -253,7 +253,7 @@ def process_testcase(doc_t_no):
     output_path = f"doc_conv/테스트케이스_{doc_t_no}.docx"
     doc.save(output_path)
 
-    push.push_to_nextjs(output_path, f"테스트케이스_{doc_s_no}.docx")
+    push.push_to_nextjs(output_path, f"테스트케이스_{doc_t_no}.docx")
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!", "OUTPUT_PATH": output_path}
 
@@ -306,7 +306,7 @@ def process_report(doc_rep_no):
     output_path = f"doc_conv/보고서_{doc_rep_no}.docx"
     doc.save(output_path)
 
-    push.push_to_nextjs(output_path, f"보고서_{doc_s_no}.docx")
+    push.push_to_nextjs(output_path, f"보고서_{doc_rep_no}.docx")
 
     return {"RESULT_CODE": 200, "RESULT_MSG": "Done!", "OUTPUT_PATH": output_path}
 

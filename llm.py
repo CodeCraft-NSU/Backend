@@ -5,7 +5,7 @@
    생성자   : 김창환                                                         
                                                                               
    생성일   : 2024/11/26                                                  
-   업데이트 : 2025/01/25                          
+   업데이트 : 2025/01/30                
                                                                               
    설명     : llm 통신 관련 엔드포인트 정의
 """
@@ -174,14 +174,14 @@ async def api_reconnect_gpt(payload: llm_payload):
         raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
 
 def create_gpt_txt(pid):
-    contents = prompt_init + "\n\n" + llm_init(payload.pid) + "\n\n"
+    contents = prompt_init + "\n\n" + llm_init(pid) + "\n\n"
     save_llm_data(pid, contents)
 
 @router.post("/llm/interact")
 async def api_interact_gpt(payload: llm_payload):
     # ChatGPT와 세션을 맺는 기능 구현 #
 
-    gpt_chat_path = f"gpt/{pid}.txt"
+    gpt_chat_path = f"gpt/{payload.pid}.txt"
     if not os.path.isfile(gpt_chat_path): # 이전 프롬프트 기록이 없다면
         create_gpt_txt(payload.pid) # 프롬프트 기록 생성
 
@@ -199,7 +199,9 @@ async def api_interact_gpt(payload: llm_payload):
     response = model.generate_content(new_prompt) # 프롬프트 전송
 
     save_llm_data(payload.pid, response.text)
+    """
+    프롬프트 저장 단계의 개선이 필요함
+    제대로 활용하려면 프롬프트와 응답을 모두 저장해야 하는데, 현재는 초기 프롬프트를 제외하면 응답만 저장하게 되어있음
+    txt가 아니라 json을 이용할지, 아니면 두 파일을 분리한 후 하나씩 불러오게 할지..
+    """
     return response.text
-
-
-# 프롬프트와 응답을 모두 저장해야 하는데, 현재는 초기 프롬프트를 제외하면 응답만 저장하게 되어있음 수정 필요
