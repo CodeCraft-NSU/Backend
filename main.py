@@ -5,7 +5,7 @@
    생성자   : 김창환                                                         
                                                                               
    생성일   : 2024/10/14                                                       
-   업데이트 : 2024/11/24                                                       
+   업데이트 : 2025/02/10                                                   
                                                                               
    설명     : FastAPI 서버 설정 및 계정, 프로젝트, 업무, 산출물 관리 라우터 포함                  
 """
@@ -43,6 +43,8 @@ app = FastAPI(debug=True)
 try: os.mkdir("doc_conv")
 except: pass
 try: os.mkdir("gpt")
+except: pass
+try: os.mkdir("draft")
 except: pass
 try: Path('llm_key.json').touch()
 except: pass
