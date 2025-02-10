@@ -50,6 +50,20 @@ class ProjectEdit(BaseModel):
     prof_id: int # 담당 교수의 교번
 
 
+class DraftPayload(BaseModel):
+    """프로젝트 임시저장 관련 클래스"""
+    univ_id: int
+    draft_id: int = None
+    pname: str = None
+    pdetails: str = None
+    psize: int = None
+    pperiod: str = None
+    pmm: int = None
+    univ_id: int = None
+    wizard: int = None
+    prof_id: int = None
+
+
 class ProjectLoad(BaseModel):  
     """프로젝트 로드 클래스 (프로젝트 조회 요청)"""
     univ_id: int  # 학번 (조회 대상 학생의 학번)
@@ -345,3 +359,13 @@ async def api_complete_wizard(payload: Wizard):
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Failed to complete wizard: {e}")
     return {"RESULT_CODE": 200, "RESULT_MSG": "Wizard complete successfully"}
+
+
+@router.post("/project/save_draft")
+async def api_save_draft_project(payload: DraftPayload):
+    return
+
+
+@router.post("/project/load_draft")
+async def api_load_draft_project(payload: DraftPayload):
+    return
