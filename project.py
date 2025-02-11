@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2025/01/25                                                  
+   업데이트 : 2025/02/11                                             
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -52,15 +52,15 @@ class ProjectEdit(BaseModel):
 
 class DraftPayload(BaseModel):
     """프로젝트 임시저장 관련 클래스"""
-    univ_id: int
+    leader_univ_id: int # 리더(프로젝트 생성자)의 학번
+    new: bool # 새로 만든 프로젝트인지, 아니면 수정본인지 확인하는 변수; 새로 만들고 처음 저장한다면 True로
     draft_id: int = None
     pname: str = None
     pdetails: str = None
     psize: int = None
     pperiod: str = None
     pmm: int = None
-    univ_id: int = None
-    wizard: int = None
+    univ_id: str = None # 팀원의 학번, 사람이 여러명이라면 ;으로 구분한다. (20100000;20102222;20103333)
     prof_id: int = None
 
 
@@ -361,11 +361,83 @@ async def api_complete_wizard(payload: Wizard):
     return {"RESULT_CODE": 200, "RESULT_MSG": "Wizard complete successfully"}
 
 
+def init_draft_project(univ_id):
+    """프로젝트 임시 저장 초기화 함수"""
+    try:
+        os.makedirs(f"draft/{univ_id}", exist_ok=True)
+        with open(f"draft/{univ_id}/draft_num", "w") as f: f.write("0")
+        project_data = {
+            "draft_id": {}
+        }
+        version = "0"
+        project_data["draft_id"][version] = {
+            "leader_univ_id": 0,
+            "pname": "",
+            "pdetails": "",
+            "psize": 0,
+            "pperiod": "",
+            "pmm": 0,
+            "univ_id": "",
+            "prof_id": 0
+        }
+        with open(f"draft/{univ_id}/draft.json", "w", encoding="utf-8") as f:
+            json.dump(project_data, f, indent=4)
+        return 1
+    except Exception as e:
+        logger.debug(f"Error occured during init draft project: {e}")
+        return False
+
+
+def save_draft_json(univ_id, draft_id, payload: DraftPayload):
+    """draft.json에 새로운 draft를 추가하거나 기존 draft를 수정"""
+    project_file = f"draft/{univ_id}/draft.json"
+
+    if os.path.exists(project_file):
+        with open(project_file, "r", encoding="utf-8") as f:
+            project_data = json.load(f)
+    else:
+        project_data = {"draft_id": {}}
+    project_data["draft_id"][str(draft_id)] = {
+        "leader_univ_id": payload.leader_univ_id,
+        "pname": payload.pname or "",
+        "pdetails": payload.pdetails or "",
+        "psize": payload.psize or 0,
+        "pperiod": payload.pperiod or "",
+        "pmm": payload.pmm or 0,
+        "univ_id": payload.univ_id or "",
+        "prof_id": payload.prof_id or 0
+    }
+    with open(project_file, "w", encoding="utf-8") as f:
+        json.dump(project_data, f, indent=4)
+    print(f"Draft {draft_id} saved for project {univ_id}.")
+
+
 @router.post("/project/save_draft")
 async def api_save_draft_project(payload: DraftPayload):
-    return
+    """프로젝트 임시 저장 함수"""
+    draft_path = f"draft/{payload.leader_univ_id}/draft_num"
+
+    if not os.path.isdir(f"draft/{payload.leader_univ_id}"):
+        id = init_draft_project(payload.leader_univ_id)
+        if id is False:
+            raise HTTPException(status_code=500, detail="Failed to init draft project")
+    else:
+        with open(draft_path, "r") as f:
+            id = int(f.read().strip())
+    if payload.new:
+        if id != 0: id += 1
+        save_draft_json(payload.leader_univ_id, id, payload)
+        with open(draft_path, "w") as f:
+            f.write(str(id))
+    else:
+        if payload.draft_id is None:
+            raise HTTPException(status_code=400, detail="Draft ID is required for updating")
+        save_draft_json(payload.leader_univ_id, payload.draft_id, payload)
+    return {"RESULT_CODE": 200, "RESULT_MSG": "Draft saved successfully", "draft_id": id}
+
 
 
 @router.post("/project/load_draft")
 async def api_load_draft_project(payload: DraftPayload):
+    """프로젝트 임시 저장 로드 함수"""
     return
