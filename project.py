@@ -52,7 +52,7 @@ class ProjectEdit(BaseModel):
 class DraftPayload(BaseModel):
     """프로젝트 임시저장 관련 클래스"""
     leader_univ_id: int # 리더(프로젝트 생성자)의 학번
-    new: bool # 새로 만든 프로젝트인지, 아니면 수정본인지 확인하는 변수; 새로 만들고 처음 저장한다면 True로
+    new: bool = None # 새로 만든 프로젝트인지, 아니면 수정본인지 확인하는 변수; 새로 만들고 처음 저장한다면 True로
     draft_id: int = None
     pname: str = None
     pdetails: str = None
@@ -450,4 +450,27 @@ async def api_save_draft_project(payload: DraftPayload):
 @router.post("/project/load_draft")
 async def api_load_draft_project(payload: DraftPayload):
     """프로젝트 임시 저장 로드 함수"""
-    return
+
+    draft_folder = f"draft/{payload.leader_univ_id}"
+    draft_num_path = f"{draft_folder}/draft_num"
+    draft_json_path = f"{draft_folder}/draft.json"
+    if not os.path.isdir(draft_folder):
+        raise HTTPException(status_code=404, detail="Draft folder not found")
+    try:
+        with open(draft_num_path, "r") as f:
+            draft_num = f.read().strip()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="draft_num file not found")
+    try:
+        with open(draft_json_path, "r", encoding="utf-8") as f:
+            draft_data = json.load(f)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="draft.json file not found")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid JSON format in draft.json")
+    return {
+        "RESULT_CODE": 200,
+        "RESULT_MSG": "Success",
+        "draft_num": int(draft_num) - 1,
+        "draft_data": draft_data
+    }
