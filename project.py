@@ -15,8 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import random  # gen_project_uid 함수에서 사용
-import sys, os, requests
-import logging
+import sys, os, requests, logging, json
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
@@ -382,7 +381,7 @@ def init_draft_project(univ_id):
         }
         with open(f"draft/{univ_id}/draft.json", "w", encoding="utf-8") as f:
             json.dump(project_data, f, indent=4)
-        return 1
+        return 0
     except Exception as e:
         logger.debug(f"Error occured during init draft project: {e}")
         return False
@@ -393,22 +392,34 @@ def save_draft_json(univ_id, draft_id, payload: DraftPayload):
     project_file = f"draft/{univ_id}/draft.json"
 
     if os.path.exists(project_file):
-        with open(project_file, "r", encoding="utf-8") as f:
-            project_data = json.load(f)
+        try:
+            with open(project_file, "r", encoding="utf-8") as f:
+                project_data = json.load(f)
+        except json.JSONDecodeError:
+            project_data = {"draft_id": {}}
     else:
         project_data = {"draft_id": {}}
-    project_data["draft_id"][str(draft_id)] = {
-        "leader_univ_id": payload.leader_univ_id,
-        "pname": payload.pname or "",
-        "pdetails": payload.pdetails or "",
-        "psize": payload.psize or 0,
-        "pperiod": payload.pperiod or "",
-        "pmm": payload.pmm or 0,
-        "univ_id": payload.univ_id or "",
-        "prof_id": payload.prof_id or 0
+    draft_entry = {
+        "leader_univ_id": payload.leader_univ_id
     }
+
+    if payload.pname is not None:
+        draft_entry["pname"] = payload.pname
+    if payload.pdetails is not None:
+        draft_entry["pdetails"] = payload.pdetails
+    if payload.psize is not None:
+        draft_entry["psize"] = payload.psize
+    if payload.pperiod is not None:
+        draft_entry["pperiod"] = payload.pperiod
+    if payload.pmm is not None:
+        draft_entry["pmm"] = payload.pmm
+    if payload.univ_id is not None:
+        draft_entry["univ_id"] = payload.univ_id
+    if payload.prof_id is not None:
+        draft_entry["prof_id"] = payload.prof_id
+    project_data["draft_id"][str(draft_id)] = draft_entry
     with open(project_file, "w", encoding="utf-8") as f:
-        json.dump(project_data, f, indent=4)
+        json.dump(project_data, f, indent=4, ensure_ascii=False)
     print(f"Draft {draft_id} saved for project {univ_id}.")
 
 
@@ -425,16 +436,15 @@ async def api_save_draft_project(payload: DraftPayload):
         with open(draft_path, "r") as f:
             id = int(f.read().strip())
     if payload.new:
-        if id != 0: id += 1
+        # print("id value is: " + str(id))
         save_draft_json(payload.leader_univ_id, id, payload)
         with open(draft_path, "w") as f:
-            f.write(str(id))
+            f.write(str(id+1))
     else:
         if payload.draft_id is None:
             raise HTTPException(status_code=400, detail="Draft ID is required for updating")
         save_draft_json(payload.leader_univ_id, payload.draft_id, payload)
-    return {"RESULT_CODE": 200, "RESULT_MSG": "Draft saved successfully", "draft_id": id}
-
+    return {"RESULT_CODE": 200, "RESULT_MSG": "Success"}
 
 
 @router.post("/project/load_draft")
