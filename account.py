@@ -87,11 +87,16 @@ async def api_acc_signup_post(payload: SignUp_Payload):
         result = account_DB.insert_user(payload, token)
         if result is True:
             return {"RESULT_CODE": 200, "RESULT_MSG": "Signup successful", "PAYLOADS": {"Token": token}}
+        elif isinstance(result, tuple) and result[0] == 1062:
+            return {"RESULT_CODE": 409, "RESULT_MSG": "Duplicate entry: This univ_id is already registered"}
         else:
             print(result)
             raise HTTPException(status_code=500, detail=f"Error during signup: {str(result)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unhandled exception during signup: {str(e)}")
+        if "1062" in str(e):
+            return {"RESULT_CODE": 409, "RESULT_MSG": "Duplicate entry: This univ_id is already registered"}
+        else:
+            raise HTTPException(status_code=500, detail=f"Unhandled exception during signup: {str(e)}")
 
 @router.post("/acc/signin")
 async def api_acc_signin_post(payload: Signin_Payload):
