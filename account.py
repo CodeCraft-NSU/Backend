@@ -39,8 +39,8 @@ class SignOut_Payload(BaseModel):
 class DelAcc_Payload(BaseModel):
     id: str
 
-class Usrpm_Payload(BaseModel):
-    token: str
+# class Usrpm_Payload(BaseModel): 미사용 비활성화 (25.02.11)
+#     token: str
 
 class Checksession_Payload(BaseModel):
     user_id: str
@@ -90,7 +90,7 @@ async def api_acc_signup_post(payload: SignUp_Payload):
         elif isinstance(result, tuple) and result[0] == 1062:
             return {"RESULT_CODE": 409, "RESULT_MSG": "Duplicate entry: This univ_id is already registered"}
         else:
-            print(result)
+            # print(result)
             raise HTTPException(status_code=500, detail=f"Error during signup: {str(result)}")
     except Exception as e:
         if "1062" in str(e):
