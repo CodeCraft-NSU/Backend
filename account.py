@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2025/02/04                                          
+   업데이트 : 2025/02/11                               
                                                                              
    설명     : 계정 생성, 로그인, 세션 관리를 위한 API 엔드포인트 정의
 """
@@ -39,8 +39,8 @@ class SignOut_Payload(BaseModel):
 class DelAcc_Payload(BaseModel):
     id: str
 
-class Usrpm_Payload(BaseModel):
-    token: str
+# class Usrpm_Payload(BaseModel): 미사용 비활성화 (25.02.11)
+#     token: str
 
 class Checksession_Payload(BaseModel):
     user_id: str
@@ -55,6 +55,12 @@ class AccCheck_Payload(BaseModel):
 class PwReset_Payload(BaseModel):
     univ_id: int
     pw: str
+
+class FineName_Payload(BaseModel):
+    univ_id: int
+
+class FindProf_Payload(BaseModel):
+    department: int
 
 def generate_token():
     """랜덤한 15자리 토큰 생성"""
@@ -81,11 +87,16 @@ async def api_acc_signup_post(payload: SignUp_Payload):
         result = account_DB.insert_user(payload, token)
         if result is True:
             return {"RESULT_CODE": 200, "RESULT_MSG": "Signup successful", "PAYLOADS": {"Token": token}}
+        elif isinstance(result, tuple) and result[0] == 1062:
+            return {"RESULT_CODE": 409, "RESULT_MSG": "Duplicate entry: This univ_id is already registered"}
         else:
-            print(result)
+            # print(result)
             raise HTTPException(status_code=500, detail=f"Error during signup: {str(result)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unhandled exception during signup: {str(e)}")
+        if "1062" in str(e):
+            return {"RESULT_CODE": 409, "RESULT_MSG": "Duplicate entry: This univ_id is already registered"}
+        else:
+            raise HTTPException(status_code=500, detail=f"Unhandled exception during signup: {str(e)}")
 
 @router.post("/acc/signin")
 async def api_acc_signin_post(payload: Signin_Payload):
@@ -180,3 +191,13 @@ async def api_acc_pwreset(payload: PwReset_Payload):
             return {"RESULT_CODE": 400, "RESULT_MSG": "Password update failed"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unhandled exception while updating password: {str(e)}")
+
+@router.post("/acc/find_sname")
+async def api_acc_find_student_name(payload: FineName_Payload):
+    """학번으로 학생 이름을 찾는 기능"""
+    return
+
+@router.post("/acc/find_prof")
+async def api_acc_find_professor(payload: FindProf_Payload):
+    """자신의 학과에 속한 교수 리스트를 불러오는 기능"""
+    return

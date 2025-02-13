@@ -5,7 +5,7 @@
    생성자   : 김창환                                                         
                                                                               
    생성일   : 2024/10/14                                                       
-   업데이트 : 2024/11/24                                                       
+   업데이트 : 2025/02/10                                                   
                                                                               
    설명     : FastAPI 서버 설정 및 계정, 프로젝트, 업무, 산출물 관리 라우터 포함                  
 """
@@ -35,7 +35,7 @@ from llm import router as llm_router
 from ccp import router as ccp_router
 from permission import router as permission_router
 from docs_converter import router as docs_router
-from test import router as test_router  # Frontend Axios에서 API 통신 테스트를 위한 라우터
+#from test import router as test_router  # Frontend Axios에서 API 통신 테스트를 위한 라우터
 
 # Database Project와의 연동을 위해 각 Router에 sys.path 경로 정의 필요
 app = FastAPI(debug=True)
@@ -43,6 +43,8 @@ app = FastAPI(debug=True)
 try: os.mkdir("doc_conv")
 except: pass
 try: os.mkdir("gpt")
+except: pass
+try: os.mkdir("draft")
 except: pass
 try: Path('llm_key.json').touch()
 except: pass
@@ -129,4 +131,4 @@ app.include_router(llm_router, prefix="/api")
 app.include_router(permission_router, prefix="/api")
 app.include_router(docs_router, prefix="/api")
 app.include_router(ccp_router, prefix="/api")
-app.include_router(test_router, prefix="/api")  # 정식 Release 전 Delete 필요
+#app.include_router(test_router, prefix="/api")  # 정식 Release 전 Delete 필요

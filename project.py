@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2025/01/25                                                  
+   업데이트 : 2025/02/11                                             
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -15,8 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import random  # gen_project_uid 함수에서 사용
-import sys, os, requests
-import logging
+import sys, os, requests, logging, json
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
@@ -48,6 +47,20 @@ class ProjectEdit(BaseModel):
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
     wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
     prof_id: int # 담당 교수의 교번
+
+
+class DraftPayload(BaseModel):
+    """프로젝트 임시저장 관련 클래스"""
+    leader_univ_id: int # 리더(프로젝트 생성자)의 학번
+    new: bool = None # 새로 만든 프로젝트인지, 아니면 수정본인지 확인하는 변수; 새로 만들고 처음 저장한다면 True로
+    draft_id: int = None
+    pname: str = None
+    pdetails: str = None
+    psize: int = None
+    pperiod: str = None
+    pmm: int = None
+    univ_id: str = None # 팀원의 학번, 사람이 여러명이라면 ;으로 구분한다. (20100000;20102222;20103333)
+    prof_id: int = None
 
 
 class ProjectLoad(BaseModel):  
@@ -345,3 +358,119 @@ async def api_complete_wizard(payload: Wizard):
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Failed to complete wizard: {e}")
     return {"RESULT_CODE": 200, "RESULT_MSG": "Wizard complete successfully"}
+
+
+def init_draft_project(univ_id):
+    """프로젝트 임시 저장 초기화 함수"""
+    try:
+        os.makedirs(f"draft/{univ_id}", exist_ok=True)
+        with open(f"draft/{univ_id}/draft_num", "w") as f: f.write("0")
+        project_data = {
+            "draft_id": {}
+        }
+        version = "0"
+        project_data["draft_id"][version] = {
+            "leader_univ_id": 0,
+            "pname": "",
+            "pdetails": "",
+            "psize": 0,
+            "pperiod": "",
+            "pmm": 0,
+            "univ_id": "",
+            "prof_id": 0
+        }
+        with open(f"draft/{univ_id}/draft.json", "w", encoding="utf-8") as f:
+            json.dump(project_data, f, indent=4)
+        return 0
+    except Exception as e:
+        logger.debug(f"Error occured during init draft project: {e}")
+        return False
+
+
+def save_draft_json(univ_id, draft_id, payload: DraftPayload):
+    """draft.json에 새로운 draft를 추가하거나 기존 draft를 수정"""
+    project_file = f"draft/{univ_id}/draft.json"
+
+    if os.path.exists(project_file):
+        try:
+            with open(project_file, "r", encoding="utf-8") as f:
+                project_data = json.load(f)
+        except json.JSONDecodeError:
+            project_data = {"draft_id": {}}
+    else:
+        project_data = {"draft_id": {}}
+    draft_entry = {
+        "leader_univ_id": payload.leader_univ_id
+    }
+
+    if payload.pname is not None:
+        draft_entry["pname"] = payload.pname
+    if payload.pdetails is not None:
+        draft_entry["pdetails"] = payload.pdetails
+    if payload.psize is not None:
+        draft_entry["psize"] = payload.psize
+    if payload.pperiod is not None:
+        draft_entry["pperiod"] = payload.pperiod
+    if payload.pmm is not None:
+        draft_entry["pmm"] = payload.pmm
+    if payload.univ_id is not None:
+        draft_entry["univ_id"] = payload.univ_id
+    if payload.prof_id is not None:
+        draft_entry["prof_id"] = payload.prof_id
+    project_data["draft_id"][str(draft_id)] = draft_entry
+    with open(project_file, "w", encoding="utf-8") as f:
+        json.dump(project_data, f, indent=4, ensure_ascii=False)
+    print(f"Draft {draft_id} saved for project {univ_id}.")
+
+
+@router.post("/project/save_draft")
+async def api_save_draft_project(payload: DraftPayload):
+    """프로젝트 임시 저장 함수"""
+    draft_path = f"draft/{payload.leader_univ_id}/draft_num"
+
+    if not os.path.isdir(f"draft/{payload.leader_univ_id}"):
+        id = init_draft_project(payload.leader_univ_id)
+        if id is False:
+            raise HTTPException(status_code=500, detail="Failed to init draft project")
+    else:
+        with open(draft_path, "r") as f:
+            id = int(f.read().strip())
+    if payload.new:
+        # print("id value is: " + str(id))
+        save_draft_json(payload.leader_univ_id, id, payload)
+        with open(draft_path, "w") as f:
+            f.write(str(id+1))
+    else:
+        if payload.draft_id is None:
+            raise HTTPException(status_code=400, detail="Draft ID is required for updating")
+        save_draft_json(payload.leader_univ_id, payload.draft_id, payload)
+    return {"RESULT_CODE": 200, "RESULT_MSG": "Success"}
+
+
+@router.post("/project/load_draft")
+async def api_load_draft_project(payload: DraftPayload):
+    """프로젝트 임시 저장 로드 함수"""
+
+    draft_folder = f"draft/{payload.leader_univ_id}"
+    draft_num_path = f"{draft_folder}/draft_num"
+    draft_json_path = f"{draft_folder}/draft.json"
+    if not os.path.isdir(draft_folder):
+        raise HTTPException(status_code=404, detail="Draft folder not found")
+    try:
+        with open(draft_num_path, "r") as f:
+            draft_num = f.read().strip()
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="draft_num file not found")
+    try:
+        with open(draft_json_path, "r", encoding="utf-8") as f:
+            draft_data = json.load(f)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="draft.json file not found")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Invalid JSON format in draft.json")
+    return {
+        "RESULT_CODE": 200,
+        "RESULT_MSG": "Success",
+        "draft_num": int(draft_num) - 1,
+        "draft_data": draft_data
+    }
