@@ -174,7 +174,7 @@ async def api_reconnect_gpt(payload: llm_payload):
         raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
 
 def create_gpt_txt(pid):
-    contents = prompt_init + "\n\n" + llm_init(pid) + "\n\n이제 PMS 사용자가 입력한 프롬프트를 전달해줄텐데, 이 프롬프트가 PMS와 관련되지 않은 질문인 경우 'PMS와 관련된 질문을 해주세요.'라고 응답해.\n\n"
+    contents = prompt_init + "\n\n" + llm_init(pid)
     save_llm_data(pid, contents)
 
 @router.post("/llm/interact")
