@@ -44,7 +44,7 @@ async def api_subject_load_by_dept(payload: SubjectPayload):
             raise HTTPException(status_code=500, detail=f"Error in Load dept Operation: {str(result)}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
-        logger.debug(f"Error in Load all Operation: {str(e)}")
+        logger.debug(f"Error in Load dept Operation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error in Load dept Operation: {str(e)}")
 
 @router.post("/subject/load_student")
@@ -56,5 +56,5 @@ async def api_subject_load_by_student(payload: SubjectPayload):
             raise HTTPException(status_code=500, detail=f"Error in Load student Operation: {str(result)}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
-        logger.debug(f"Error in Load all Operation: {str(e)}")
+        logger.debug(f"Error in Load student Operation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error in Load student Operation: {str(e)}")

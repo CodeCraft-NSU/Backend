@@ -474,3 +474,27 @@ async def api_load_draft_project(payload: DraftPayload):
         "draft_num": int(draft_num) - 1,
         "draft_data": draft_data
     }
+
+@router.post("/project/load_prof")
+async def api_project_load_prof(payload: ProjectLoadUser):
+    """프로젝트의 담당 교수를 조회"""
+    try:
+        result = fetch_project_professor_name(payload.pid)
+        if isinstance(result, Exception):
+            raise HTTPException(status_code=500, detail=f"Error in Load professor Operation: {str(result)}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.debug(f"Error in Load professor Operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in Load professor Operation: {str(e)}")
+
+@router.post("/project/count_user")
+async def api_project_count_student(payload: ProjectLoad):
+    """프로젝트에 포함된 사람의 수를 집계"""
+    try:
+        result = fetch_project_user_count(payload.univ_id)
+        if isinstance(result, Exception):
+            raise HTTPException(status_code=500, detail=f"Error in count user Operation: {str(result)}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Count Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.debug(f"Error in count user Operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in count user Operation: {str(e)}")
