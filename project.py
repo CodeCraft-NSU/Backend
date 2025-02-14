@@ -35,6 +35,7 @@ class ProjectInit(BaseModel):
     univ_id: int
     wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
     prof_id: int # 담당 교수의 교번
+    subject: int # 과목 코드
 
 
 class ProjectEdit(BaseModel):  
@@ -47,6 +48,7 @@ class ProjectEdit(BaseModel):
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
     wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
     prof_id: int # 담당 교수의 교번
+    subject: int
 
 
 class DraftPayload(BaseModel):
@@ -61,6 +63,7 @@ class DraftPayload(BaseModel):
     pmm: int = None
     univ_id: str = None # 팀원의 학번, 사람이 여러명이라면 ;으로 구분한다. (20100000;20102222;20103333)
     prof_id: int = None
+    subject: int = None
 
 
 class ProjectLoad(BaseModel):  
@@ -377,7 +380,8 @@ def init_draft_project(univ_id):
             "pperiod": "",
             "pmm": 0,
             "univ_id": "",
-            "prof_id": 0
+            "prof_id": 0,
+            "subject": 0
         }
         with open(f"draft/{univ_id}/draft.json", "w", encoding="utf-8") as f:
             json.dump(project_data, f, indent=4)
@@ -417,6 +421,8 @@ def save_draft_json(univ_id, draft_id, payload: DraftPayload):
         draft_entry["univ_id"] = payload.univ_id
     if payload.prof_id is not None:
         draft_entry["prof_id"] = payload.prof_id
+    if payload.subject is not None:
+        draft_entry["subject"] = payload.subject
     project_data["draft_id"][str(draft_id)] = draft_entry
     with open(project_file, "w", encoding="utf-8") as f:
         json.dump(project_data, f, indent=4, ensure_ascii=False)
