@@ -10,8 +10,6 @@
    설명     : 프로젝트를 평가와 관련 된 엔드포인트 정의
 """
 
-# 교수 계정과 관련하여 permission이 추가되어야 하지 않을까.
-
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
