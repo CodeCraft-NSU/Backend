@@ -212,7 +212,9 @@ def build_csv_dict(pid):
         "doc_r": "doc_require",
         "doc_m": "doc_meeting",
         "doc_t": "doc_test",
-        "doc_o": "doc_other"
+        "doc_o": "doc_other",
+        "grade": "grade",
+        "doc_a": "doc_attach"
     }
     csv_dict = {}
     try:
