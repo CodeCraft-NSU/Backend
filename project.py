@@ -485,7 +485,7 @@ async def api_load_draft_project(payload: DraftPayload):
 async def api_project_load_prof(payload: ProjectLoadUser):
     """프로젝트의 담당 교수를 조회"""
     try:
-        result = fetch_project_professor_name(payload.pid)
+        result = project_DB.fetch_project_professor_name(payload.pid)
         if isinstance(result, Exception):
             raise HTTPException(status_code=500, detail=f"Error in Load professor Operation: {str(result)}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
@@ -497,7 +497,7 @@ async def api_project_load_prof(payload: ProjectLoadUser):
 async def api_project_count_student(payload: ProjectLoad):
     """프로젝트에 포함된 사람의 수를 집계"""
     try:
-        result = fetch_project_user_count(payload.univ_id)
+        result = project_DB.fetch_project_user_count(payload.univ_id)
         if isinstance(result, Exception):
             raise HTTPException(status_code=500, detail=f"Error in count user Operation: {str(result)}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Count Successful.", "PAYLOAD": {"Result": result}}
