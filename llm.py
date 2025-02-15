@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from docx import Document
 from urllib.parse import quote
+from logger import logger
 import google.generativeai as genai
 import sys, os, re, requests, json, logging
 

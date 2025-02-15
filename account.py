@@ -12,6 +12,7 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from logger import logger
 import sys, os, random, string, logging
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용

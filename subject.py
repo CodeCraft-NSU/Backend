@@ -12,6 +12,7 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from logger import logger
 import sys, os
 
 sys.path.append(os.path.abspath('/data/Database Project'))

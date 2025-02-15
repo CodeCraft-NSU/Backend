@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Dict, Any
+from logger import logger
 
 router = APIRouter()
 

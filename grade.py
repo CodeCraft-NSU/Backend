@@ -13,6 +13,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from logger import logger
 import sys, os
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용

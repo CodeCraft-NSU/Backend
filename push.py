@@ -13,6 +13,7 @@
 import logging
 import requests
 from fastapi import HTTPException
+from logger import logger
 from urllib.parse import quote
 
 def push_to_nextjs(file_path, file_name):

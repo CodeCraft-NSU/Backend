@@ -15,6 +15,7 @@ from cryptography.fernet import Fernet
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from urllib.parse import quote
+from logger import logger
 import os, sys, logging, shutil, tarfile, io, struct, httpx, requests
 import traceback
 

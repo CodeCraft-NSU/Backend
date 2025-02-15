@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from datetime import datetime
 from urllib.parse import quote
+from logger import logger
 import sys, os, random, requests, json, logging, shutil, subprocess
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용

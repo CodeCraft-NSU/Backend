@@ -22,6 +22,7 @@ from starlette.responses import Response
 from fastapi import HTTPException
 from dotenv import load_dotenv
 from pathlib import Path
+from logger import logger
 import os
 
 # 라우터 추가 파트
