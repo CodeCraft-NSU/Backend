@@ -196,7 +196,7 @@ async def api_acc_find_student_name(payload: FineName_Payload):
     """학번으로 학생 이름을 찾는 기능"""
     try:
         result = account_DB.fetch_student_name(payload.univ_id)
-        if isinstance(result, Exception):
+        if isinstance(result, Exception) or result == None:
             raise HTTPException(status_code=500, detail=f"Error in find student name Operation: {str(result)}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Find Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
