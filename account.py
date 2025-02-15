@@ -12,9 +12,7 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import sys, os
-import random
-import string
+import sys, os, random, string, logging
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import account_DB
@@ -195,9 +193,16 @@ async def api_acc_pwreset(payload: PwReset_Payload):
 @router.post("/acc/find_sname")
 async def api_acc_find_student_name(payload: FineName_Payload):
     """학번으로 학생 이름을 찾는 기능"""
-    return
+    try:
+        result = account_DB.fetch_student_name(payload.univ_id)
+        if isinstance(result, Exception):
+            raise HTTPException(status_code=500, detail=f"Error in find student name Operation: {str(result)}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Find Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.debug(f"Error in find student name Operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in find student name Operation: {str(e)}")
 
-@router.post("/acc/find_prof")
-async def api_acc_find_professor(payload: FindProf_Payload):
-    """자신의 학과에 속한 교수 리스트를 불러오는 기능"""
-    return
+# @router.post("/acc/find_prof") # 미사용 주석처리 (25.02.15)
+# async def api_acc_find_professor(payload: FindProf_Payload):
+#     """자신의 학과에 속한 교수 리스트를 불러오는 기능"""
+#     return
