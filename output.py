@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 from urllib.parse import quote
 from logger import logger
+from typing import List
 import sys, os, random, requests, json, logging, shutil, subprocess
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
@@ -92,12 +93,19 @@ class ReqSpecPayload(BaseModel):
 
 class TestCasePayload(BaseModel):
     """테스트 케이스 모델"""
-    tcname: str
-    tcstart: str
-    tcend: str
-    tcpass: int
-    pid: int = None
-    doc_t_no: int = None
+    doc_t_group1: str
+    doc_t_name: str
+    doc_t_start: str
+    doc_t_end: str
+    doc_t_pass: int
+    doc_t_group1no: int
+
+
+class MultipleTestCasesPayload(BaseModel):
+    """여러 개의 테스트 케이스 추가 모델"""
+    pid: int
+    testcases: List[TestCasePayload]
+
 
 class ReportPayload(BaseModel):
     """보고서 모델"""
@@ -470,47 +478,33 @@ async def delete_reqspec(payload: DocumentDeletePayload):
         print(f"Error [delete_reqspec]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting requirement specification: {e}")
 
+
 @router.post("/output/testcase_add")
-async def add_testcase(payload: TestCasePayload):
-    """
-    테스트 케이스 추가 API
-    """
+async def add_multiple_testcase(payload: MultipleTestCasesPayload):
+    """ 테스트 케이스 추가 API """
     try:
-        result = output_DB.add_testcase(
-            tcname=payload.tcname,
-            tcstart=payload.tcstart,
-            tcend=payload.tcend,
-            tcpass=payload.tcpass,
-            pid=payload.pid
-        )
-        return {"RESULT_CODE": 200, "RESULT_MSG": "test case document added successfully", "PAYLOADS": {"doc_r_no": result}}
-    except Exception as e:
-        print(f"Error [add_testcase]: {e}")
-        raise HTTPException(status_code=500, detail=f"Error add test case document: {e}")
-
-@router.post("/output/testcase_edit")
-async def edit_testcase(payload: TestCasePayload):
-    """
-    테스트 케이스 수정 API
-    """
-    try:
-        result = output_DB.edit_testcase(
-            tcname=payload.tcname,
-            tcstart=payload.tcstart,
-            tcend=payload.tcend,
-            tcpass=payload.tcpass,
-            doc_t_no=payload.doc_t_no
-        )
-        if result:
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Test case updated successfully"}
+        testcase_data = [
+            [
+                tc.doc_t_group1,
+                tc.doc_t_name,
+                tc.doc_t_start,
+                tc.doc_t_end,
+                tc.doc_t_pass,
+                tc.doc_t_group1no
+            ]
+            for tc in payload.testcases
+        ]
+        result = output_DB.add_multiple_testcase(testcase_data, payload.pid)
+        if result is True:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Test cases added successfully"}
         else:
-            raise HTTPException(status_code=500, detail="Failed to update test case")
+            raise HTTPException(status_code=500, detail=f"Error adding test cases: {result}")
     except Exception as e:
-        print(f"Error [edit_testcase]: {e}")
-        raise HTTPException(status_code=500, detail=f"Error editing test case: {e}")
+        print(f"Error [add_multiple_testcase]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error adding test cases: {e}")
 
 
-@router.post("/output/testcase_fetch_all")
+@router.post("/output/testcase_load")
 async def fetch_all_testcase(payload: DocumentFetchPayload):
     """
     테스트 케이스 조회 API
@@ -524,19 +518,19 @@ async def fetch_all_testcase(payload: DocumentFetchPayload):
 
 
 @router.post("/output/testcase_delete")
-async def delete_testcase(payload: DocumentDeletePayload):
+async def delete_all_testcase(payload: DocumentFetchPayload):
     """
     테스트 케이스 삭제 API
     """
     try:
-        result = output_DB.delete_testcase(payload.doc_s_no)
-        if result:
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Test case deleted successfully"}
+        result = output_DB.delete_all_testcase(payload.pid)
+        if result is True:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "All test cases deleted successfully"}
         else:
-            raise HTTPException(status_code=500, detail="Failed to delete test case")
+            raise HTTPException(status_code=500, detail=f"Error deleting test cases: {result}")
     except Exception as e:
-        print(f"Error [delete_testcase]: {e}")
-        raise HTTPException(status_code=500, detail=f"Error deleting test case: {e}")
+        print(f"Error [delete_all_testcase]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting test cases: {e}")
 
 
 @router.post("/output/report_add")
