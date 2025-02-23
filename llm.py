@@ -25,7 +25,7 @@ import project_DB, output_DB
 router = APIRouter()
 
 """
-      LLM 통신 절차
+      LLM 통신 절차 (구버전)
 
       1. DB로부터 프로젝트의 기본 정보 및 온라인 산출물 정보를 받아온다.
       2. Storage Server로부터 MS Word (docx, doc, ...) 파일을 받아와 내용을 파싱한다.
@@ -33,8 +33,7 @@ router = APIRouter()
       4. 필요에 따라 추가적으로 프롬프트를 전달한다.
       5. ChatGPT에게 받은 응답을 프론트엔드에 전달한다.
 """
-
-prompt_init = """
+prompt_init_old = """
       CodeCraft PMS (이하 PMS)는 Project Management System으로서, 기존의 서비스로는 대학생이 제대로 사용하기 힘들었다는 것을 개선하기 위해 만든 서비스이다.
 
       너는 이 PMS를 사용하는 대학생들에게 프로젝트를 진행하는 데 도움을 주기 위해 사용될 것이다.
@@ -57,6 +56,40 @@ prompt_init = """
       답변에는 이 서비스를 개발한 우리가 아니라 PMS를 이용하는 사람을 위해 사용될 것이므로 우리가 개발한 'PMS' 자체에 대한 수정이나 개선 사항을 내용에 포함하지는 않도록 한다.
 """
 
+"""
+    LLM 통신 절차
+    
+    1. 
+"""
+
+"""
+    LLM 메뉴 구상도
+    ├── 메인 메뉴
+    │   ├── 프로젝트
+    │   │   ├── 현재 프로젝트 분석
+    │   │   ├── 프로젝트 진행에 대한 조언
+    │   │   ├── (유저가 아이디어를 던지면 LLM이 정보를 가공 후 PMS에 적용 가능한 데이터로 만들어 안내하는 기능? <- 실현 가능한가..)
+    │   ├── 산출물
+    │   │   ├── 현재 산출물 분석
+    │   │   ├── (미정)
+    │   ├── (미정)
+    │   │   ├── (미정)
+    │   ├── PMS 서비스 안내 # 이 메뉴는 LLM 연계가 아닌 기존에 준비된 문장을 출력
+    │   │   ├── 대학생을 위한 PMS 서비스란?
+    │   │   ├── 각 메뉴별 안내
+    │   │   │   ├── WBS
+    │   │   │   ├── 온라인 산출물
+    │   │   │   ├── 기타 산출물
+    │   │   │   ├── 업무 관리
+    │   │   │   ├── 평가
+    │   └── └── └── 프로젝트 관리
+    └──────────────
+"""
+
+prompt_init = """
+
+"""
+
 # 프로젝트 종료 일까지 100일 이하로 남았다면 수능처럼 디데이 알려주는 기능 만들기?
 
 class keypayload(BaseModel):
@@ -72,14 +105,14 @@ def db_data_collect(pid):
 
 def output_data_collect(pid):
    data = output_DB.fetch_all_other_documents(pid)
-   result = analysis_output(data)
+   # result = analysis_output(data)
    return result
 
-def analysis_output(data):
-#    print(data)
-   # 개쩌는 문서 파싱 기능 구현 #
-   result = "output data는 아직 미구현 기능입니다."
-   return result
+# def analysis_output(data): RAG 기능 폐기 결정으로 인한 기능 삭제 (25.02.22)
+#    #  print(data)
+#    # ~개쩌는 문서 파싱 기능 구현~ #
+#    result = "output data는 아직 미구현 기능입니다." 
+#    return result
 
 def load_key(pid):
     try:
@@ -143,9 +176,10 @@ def llm_init(pid):
     return data
 
 def save_llm_data(pid, contents):
-    path = "gpt/" + str(pid) + ".txt"
-    with open(path, 'w') as f:
-        f.write(contents)
+    return
+    # path = "gpt/" + str(pid) + ".txt"
+    # with open(path, 'w') as f:
+    #     f.write(contents)
 
 # @router.post("/llm/reconnect") # LLM 사용 컨셉이 변경됨에 따라 함수 비활성화 (25.02.19)
 # async def api_reconnect_gpt(payload: llm_payload):
@@ -181,28 +215,31 @@ def create_gpt_txt(pid):
 @router.post("/llm/interact")
 async def api_interact_gpt(payload: llm_payload):
     # ChatGPT와 세션을 맺는 기능 구현 #
-
-    gpt_chat_path = f"gpt/{payload.pid}.txt"
-    if not os.path.isfile(gpt_chat_path): # 이전 프롬프트 기록이 없다면
-        create_gpt_txt(payload.pid) # 프롬프트 기록 생성
-
-    key = load_key(payload.pid) # Gemini key 로드
-    genai.configure(api_key=key)
-    model = genai.GenerativeModel("gemini-1.5-flash") # Gemini 모델 선언
-
     try:
-        with open(gpt_chat_path, "r", encoding="utf-8") as file:
-            previous_prompts = file.read() # 이전 프롬프트 기록 불러오기
+        # gpt_chat_path = f"gpt/{payload.pid}.txt"
+        # if not os.path.isfile(gpt_chat_path): # 이전 프롬프트 기록이 없다면
+        #     create_gpt_txt(payload.pid) # 프롬프트 기록 생성
+
+        try: 
+            key = load_key(payload.pid) # Gemini key 로드
+        except:
+            logger.debug(f"LLM process error while loading key for PID {payload.pid}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Key exception occurred.")
+            
+        genai.configure(api_key=key)
+        model = genai.GenerativeModel("gemini-2.0-flash") # Gemini 모델 선언
+
+        # try: # 세션 복원 기능 삭제로 인한 비활성화
+        #     with open(gpt_chat_path, "r", encoding="utf-8") as file:
+        #         previous_prompts = file.read() # 이전 프롬프트 기록 불러오기
+        # except Exception as e:
+        #     raise HTTPException(status_code=500, detail=f"Failed to read {gpt_file_path}: {e}")
+
+        new_prompt = f"{prompt_init}\n\n{payload.prompt}" # 이전 프롬프트 + 신규 프롬프트
+        response = model.generate_content(new_prompt) # 프롬프트 전송
+
+        # save_llm_data(payload.pid, response.text) 미사용 비활성화
+        return response.text
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read {gpt_file_path}: {e}")
-
-    new_prompt = f"{previous_prompts}\n\n{payload.prompt}" # 이전 프롬프트 + 신규 프롬프트
-    response = model.generate_content(new_prompt) # 프롬프트 전송
-
-    save_llm_data(payload.pid, response.text)
-    """
-    프롬프트 저장 단계의 개선이 필요함
-    제대로 활용하려면 프롬프트와 응답을 모두 저장해야 하는데, 현재는 초기 프롬프트를 제외하면 응답만 저장하게 되어있음
-    txt가 아니라 json을 이용할지, 아니면 두 파일을 분리한 후 하나씩 불러오게 할지..
-    """
-    return response.text
+        logger.debug(f"Unhandled Error occured: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unhandled Error occured while LLM process: {str(e)}")
