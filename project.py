@@ -340,7 +340,7 @@ async def api_project_check_user(payload: ProjectCheckUser):
         raise HTTPException(status_code=500, detail=f"Error checking project users: {str(e)}")
 
 
-@router.post("/project/endwizard")
+@router.post("/project/endwizard") # wizard의 컨셉이 변경되었으므로, 추후 tutorial 등의 이름으로 변경 혹은 폐기 가능성 有
 async def api_complete_wizard(payload: Wizard):
     try:
         result = project_DB.complete_setup_wizard(payload.pid)

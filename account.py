@@ -123,10 +123,8 @@ async def api_acc_signin_post(payload: Signin_Payload):
             }
         }
     except HTTPException as http_err:
-        # 명시적으로 처리된 HTTP 예외는 재사용
         raise http_err
     except Exception as e:
-        # 기타 모든 예외는 500으로 처리
         raise HTTPException(status_code=500, detail=f"Unhandled exception during login: {str(e)}")
 
 @router.post("/acc/signout")
