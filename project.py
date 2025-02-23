@@ -472,8 +472,42 @@ async def api_load_draft_project(payload: DraftPayload):
 @router.post("/project/del_draft")
 async def api_delete_draft_project(payload: DraftPayload):
     """프로젝트 임시 저장 삭제 함수"""
-    # Univ_ID와 Draft_ID 기준으로 json 파일을 검색해 삭제하고, draft_num도 -1 한다.
-    return
+
+    draft_folder = f"draft/{payload.leader_univ_id}"
+    draft_num_path = f"{draft_folder}/draft_num"
+    draft_json_path = f"{draft_folder}/draft.json"
+    if not os.path.isdir(draft_folder): # payload 값 검증
+        logger.debug(f"Draft folder not found")
+        raise HTTPException(status_code=404, detail="Draft folder not found")
+    if payload.draft_id is None:
+        logger.debug(f"Draft ID is required for deletion")
+        raise HTTPException(status_code=400, detail="Draft ID is required for deletion")
+    try:
+        with open(draft_json_path, "r", encoding="utf-8") as f:
+            draft_data = json.load(f)
+    except FileNotFoundError:
+        logger.debug(f"draft.json file not found")
+        raise HTTPException(status_code=404, detail="draft.json file not found")
+    except json.JSONDecodeError:
+        logger.debug(f"Invalid JSON format in draft.json")
+        raise HTTPException(status_code=500, detail="Invalid JSON format in draft.json")
+    draft_id_str = str(payload.draft_id)
+    if draft_id_str not in draft_data.get("draft_id", {}):
+        logger.debug(f"Draft ID not found")
+        raise HTTPException(status_code=404, detail="Draft ID not found")
+    
+    # draft_id 오름차순 정렬
+    del draft_data["draft_id"][draft_id_str]
+    sorted_drafts = {str(idx): value for idx, value in enumerate(draft_data["draft_id"].values())}
+    draft_data["draft_id"] = sorted_drafts
+    new_draft_num = len(sorted_drafts) # 최대 ID + 1
+    
+    with open(draft_json_path, "w", encoding="utf-8") as f:
+        json.dump(draft_data, f, indent=4, ensure_ascii=False)
+    with open(draft_num_path, "w") as f:
+        f.write(str(new_draft_num))
+
+    return {"RESULT_CODE": 200, "RESULT_MSG": "Draft deleted successfully"}
 
 
 @router.post("/project/load_prof")
