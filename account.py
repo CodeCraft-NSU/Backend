@@ -66,17 +66,21 @@ def generate_token():
     characters = string.ascii_letters + string.digits + string.punctuation
     return ''.join(random.choices(characters, k=15))
 
+
 @router.post("/acc/checksession")
 async def check_session(payload: Checksession_Payload):
     """세션 유효성 확인"""
     try:
         is_valid = account_DB.validate_user_token(payload.user_id, payload.token)
+        if isinstance(is_valid, Exception):
+            raise HTTPException(status_code=401, detail=f"Invalid session: {str(is_valid)}")
         if is_valid:
             return {"RESULT_CODE": 200, "RESULT_MSG": "Session valid"}
-        else:
-            raise HTTPException(status_code=401, detail="Invalid session token")
+        raise HTTPException(status_code=401, detail="Invalid session token")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error validating session: {str(e)}")
+        logger.debug(f"Error validating session: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error validating session: {str(e)}")
+
 
 @router.post("/acc/signup")
 async def api_acc_signup_post(payload: SignUp_Payload):

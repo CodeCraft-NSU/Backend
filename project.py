@@ -468,6 +468,14 @@ async def api_load_draft_project(payload: DraftPayload):
         "draft_data": draft_data
     }
 
+
+@router.post("/project/del_draft")
+async def api_delete_draft_project(payload: DraftPayload):
+    """프로젝트 임시 저장 삭제 함수"""
+    # Univ_ID와 Draft_ID 기준으로 json 파일을 검색해 삭제하고, draft_num도 -1 한다.
+    return
+
+
 @router.post("/project/load_prof")
 async def api_project_load_prof(payload: ProjectLoadUser):
     """프로젝트의 담당 교수를 조회"""

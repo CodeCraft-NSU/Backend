@@ -147,32 +147,32 @@ def save_llm_data(pid, contents):
     with open(path, 'w') as f:
         f.write(contents)
 
-@router.post("/llm/reconnect")
-async def api_reconnect_gpt(payload: llm_payload):
-    # PMS의 세션을 복원 시 GPT 통신 기록을 프론트에 전달 #
-    try:
-        logging.info(f"Sending gpt chat file to Next.js using Raw Binary")
-        file_name = str(payload.pid) + ".txt"
-        llm_file_path = "gpt/" + file_name
-        with open(llm_file_path, "rb") as file:
-            response = requests.post(
-                "http://192.168.50.84:90/api/file_receive",
-                data=file,
-                headers={
-                    "Content-Type": "application/octet-stream",
-                    "file-name": quote(file_name)
-                }
-            )
-        if response.status_code != 200:
-            logging.error(f"Frontend server response error: {response.status_code} - {response.text}")
-            raise HTTPException(status_code=500, detail="Failed to send file to frontend")
+# @router.post("/llm/reconnect") # LLM 사용 컨셉이 변경됨에 따라 함수 비활성화 (25.02.19)
+# async def api_reconnect_gpt(payload: llm_payload):
+#     # PMS의 세션을 복원 시 GPT 통신 기록을 프론트에 전달 #
+#     try:
+#         logging.info(f"Sending gpt chat file to Next.js using Raw Binary")
+#         file_name = str(payload.pid) + ".txt"
+#         llm_file_path = "gpt/" + file_name
+#         with open(llm_file_path, "rb") as file:
+#             response = requests.post(
+#                 "http://192.168.50.84:90/api/file_receive",
+#                 data=file,
+#                 headers={
+#                     "Content-Type": "application/octet-stream",
+#                     "file-name": quote(file_name)
+#                 }
+#             )
+#         if response.status_code != 200:
+#             logging.error(f"Frontend server response error: {response.status_code} - {response.text}")
+#             raise HTTPException(status_code=500, detail="Failed to send file to frontend")
 
-        logging.info(f"File {file_name} successfully transferred to frontend")
-        return {"RESULT_CODE": 200, "RESULT_MSG": "File transferred successfully"}
+#         logging.info(f"File {file_name} successfully transferred to frontend")
+#         return {"RESULT_CODE": 200, "RESULT_MSG": "File transferred successfully"}
 
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to send file to frontend: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
+#     except requests.exceptions.RequestException as e:
+#         logging.error(f"Failed to send file to frontend: {str(e)}")
+#         raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
 
 def create_gpt_txt(pid):
     contents = prompt_init + "\n\n" + llm_init(pid)
