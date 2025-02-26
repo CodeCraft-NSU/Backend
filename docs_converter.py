@@ -17,6 +17,7 @@ from docx import Document
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from datetime import datetime, date
 from urllib.parse import quote
+from logger import logger
 import pymysql, os, sys, traceback
 import logging, requests
 import re  # 정규식 사용

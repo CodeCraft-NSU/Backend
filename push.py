@@ -1,8 +1,8 @@
-"""                                                          
-   CodeCraft PMS Backend Project                             
+"""
+   CodeCraft PMS Backend Project
                                                                               
-   파일명   : push.py                                                          
-   생성자   : 김창환                                
+   파일명   : push.py
+   생성자   : 김창환
                                                                               
    생성일   : 2025/01/25                                                  
    업데이트 : 2025/01/25                                     
@@ -13,6 +13,7 @@
 import logging
 import requests
 from fastapi import HTTPException
+from logger import logger
 from urllib.parse import quote
 
 def push_to_nextjs(file_path, file_name):

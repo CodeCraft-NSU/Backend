@@ -15,6 +15,7 @@ from cryptography.fernet import Fernet
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from urllib.parse import quote
+from logger import logger
 import os, sys, logging, shutil, tarfile, io, struct, httpx, requests
 import traceback
 
@@ -76,11 +77,10 @@ def encrypt_ccp_file(pid):
 
         # tar 파일로 압축
         with tarfile.open(fileobj=compressed_file, mode='w|') as tar:
-            # 디렉터리 내 모든 파일과 서브디렉토리 탐색
             for root, dirs, files in os.walk(input_dir):
                 for file in files:
                     file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, input_dir)  # 상대 경로로 저장
+                    arcname = os.path.relpath(file_path, input_dir)
                     tar.add(file_path, arcname=arcname)
 
         # 압축된 데이터 가져오기
@@ -212,7 +212,9 @@ def build_csv_dict(pid):
         "doc_r": "doc_require",
         "doc_m": "doc_meeting",
         "doc_t": "doc_test",
-        "doc_o": "doc_other"
+        "doc_o": "doc_other",
+        "grade": "grade",
+        "doc_a": "doc_attach"
     }
     csv_dict = {}
     try:

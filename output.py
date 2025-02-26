@@ -12,10 +12,13 @@
 
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from datetime import datetime
 from urllib.parse import quote
+from logger import logger
+from typing import List
 import sys, os, random, requests, json, logging, shutil, subprocess
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
@@ -91,12 +94,19 @@ class ReqSpecPayload(BaseModel):
 
 class TestCasePayload(BaseModel):
     """테스트 케이스 모델"""
-    tcname: str
-    tcstart: str
-    tcend: str
-    tcpass: int
-    pid: int = None
-    doc_t_no: int = None
+    doc_t_group1: str
+    doc_t_name: str
+    doc_t_start: str
+    doc_t_end: str
+    doc_t_pass: int
+    doc_t_group1no: int
+
+
+class MultipleTestCasesPayload(BaseModel):
+    """여러 개의 테스트 케이스 추가 모델"""
+    pid: int
+    testcases: List[TestCasePayload]
+
 
 class ReportPayload(BaseModel):
     """보고서 모델"""
@@ -146,6 +156,7 @@ class OtherDocDownloadPayload(BaseModel):
 
 TEMP_DOWNLOAD_DIR = "/data/tmp"
 STORAGE_API_KEY = os.getenv('ST_KEY')
+STORAGE_SERVER_URL = "http://192.168.50.84:10080/api/output"
 
 
 @router.post("/output/sum_doc_add")
@@ -469,47 +480,33 @@ async def delete_reqspec(payload: DocumentDeletePayload):
         print(f"Error [delete_reqspec]: {e}")
         raise HTTPException(status_code=500, detail=f"Error deleting requirement specification: {e}")
 
+
 @router.post("/output/testcase_add")
-async def add_testcase(payload: TestCasePayload):
-    """
-    테스트 케이스 추가 API
-    """
+async def add_multiple_testcase(payload: MultipleTestCasesPayload):
+    """ 테스트 케이스 추가 API """
     try:
-        result = output_DB.add_testcase(
-            tcname=payload.tcname,
-            tcstart=payload.tcstart,
-            tcend=payload.tcend,
-            tcpass=payload.tcpass,
-            pid=payload.pid
-        )
-        return {"RESULT_CODE": 200, "RESULT_MSG": "test case document added successfully", "PAYLOADS": {"doc_r_no": result}}
-    except Exception as e:
-        print(f"Error [add_testcase]: {e}")
-        raise HTTPException(status_code=500, detail=f"Error add test case document: {e}")
-
-@router.post("/output/testcase_edit")
-async def edit_testcase(payload: TestCasePayload):
-    """
-    테스트 케이스 수정 API
-    """
-    try:
-        result = output_DB.edit_testcase(
-            tcname=payload.tcname,
-            tcstart=payload.tcstart,
-            tcend=payload.tcend,
-            tcpass=payload.tcpass,
-            doc_t_no=payload.doc_t_no
-        )
-        if result:
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Test case updated successfully"}
+        testcase_data = [
+            [
+                tc.doc_t_group1,
+                tc.doc_t_name,
+                tc.doc_t_start,
+                tc.doc_t_end,
+                tc.doc_t_pass,
+                tc.doc_t_group1no
+            ]
+            for tc in payload.testcases
+        ]
+        result = output_DB.add_multiple_testcase(testcase_data, payload.pid)
+        if result is True:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Test cases added successfully"}
         else:
-            raise HTTPException(status_code=500, detail="Failed to update test case")
+            raise HTTPException(status_code=500, detail=f"Error adding test cases: {result}")
     except Exception as e:
-        print(f"Error [edit_testcase]: {e}")
-        raise HTTPException(status_code=500, detail=f"Error editing test case: {e}")
+        print(f"Error [add_multiple_testcase]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error adding test cases: {e}")
 
 
-@router.post("/output/testcase_fetch_all")
+@router.post("/output/testcase_load")
 async def fetch_all_testcase(payload: DocumentFetchPayload):
     """
     테스트 케이스 조회 API
@@ -523,19 +520,19 @@ async def fetch_all_testcase(payload: DocumentFetchPayload):
 
 
 @router.post("/output/testcase_delete")
-async def delete_testcase(payload: DocumentDeletePayload):
+async def delete_all_testcase(payload: DocumentFetchPayload):
     """
     테스트 케이스 삭제 API
     """
     try:
-        result = output_DB.delete_testcase(payload.doc_s_no)
-        if result:
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Test case deleted successfully"}
+        result = output_DB.delete_all_testcase(payload.pid)
+        if result is True:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "All test cases deleted successfully"}
         else:
-            raise HTTPException(status_code=500, detail="Failed to delete test case")
+            raise HTTPException(status_code=500, detail=f"Error deleting test cases: {result}")
     except Exception as e:
-        print(f"Error [delete_testcase]: {e}")
-        raise HTTPException(status_code=500, detail=f"Error deleting test case: {e}")
+        print(f"Error [delete_all_testcase]: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting test cases: {e}")
 
 
 @router.post("/output/report_add")
@@ -642,7 +639,7 @@ async def add_other_document(
         data = {
             "fuid": file_unique_id,
             "pid": pid,
-            "userid": univ_id
+            "univ_id": univ_id
         }
 
         # 파일 읽기
@@ -863,7 +860,6 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
             except Exception as e:
                 logging.error(f"Failed to delete temporary file {temp_file_path}: {str(e)}")
 
-
 @router.post("/output/load_type")
 async def api_otherdoc_type(payload: OtherDocumentPayload):
     try:
@@ -872,3 +868,147 @@ async def api_otherdoc_type(payload: OtherDocumentPayload):
     except HTTPException as e:
         return {"RESULT_CODE": 500, "RESULT_MSG": e.detail}
         raise e
+
+@router.post("/output/attach_add")
+async def add_attachments(
+    files: List[UploadFile] = File(...),
+    p_no: int = Form(...),
+    doc_no: int = Form(...),
+    doc_type: int = Form(...),
+    univ_id: int = Form(...)
+):
+    """ 여러 첨부파일 업로드 엔드포인트 """
+    attachments = []
+    headers = {"Authorization": STORAGE_API_KEY}
+    for file in files:
+        fuid = gen_file_uid()
+        
+        data = {
+            "fuid": fuid,
+            "pid": p_no,
+            "userid": univ_id,
+            "doc_type": doc_type
+        }
+        file_content = await file.read()
+        files_payload = {"file": (file.filename, file_content, file.content_type)}
+        storage_url = f"{STORAGE_SERVER_URL}/attach_add"
+        response = requests.post(storage_url, files=files_payload, data=data, headers=headers)
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=f"Storage server error: {response.text}")
+        response_data = response.json()
+        file_path = response_data.get("FILE_PATH")
+        if not file_path:
+            raise HTTPException(status_code=500, detail="Storage server returned invalid response")
+        original_file_name = file.filename
+        db_result = output_DB.add_attachment(original_file_name, file_path, doc_type, doc_no, p_no)
+        if db_result is not True:
+            raise HTTPException(status_code=500, detail="Failed to save attachment metadata to DB")
+        attachments.append({
+            "doc_a_name": original_file_name,
+            "doc_a_path": file_path,
+            "doc_type": doc_type,
+            "doc_no": doc_no,
+            "p_no": p_no
+        })
+    return {
+        "RESULT_CODE": 200,
+        "RESULT_MSG": "Attachments uploaded successfully",
+        "PAYLOADS": attachments
+    }
+
+@router.post("/output/attach_load")
+async def fetch_attachments(
+    p_no: int = Form(...),
+    doc_no: int = Form(...),
+    doc_type: int = Form(...)
+):
+    """ 특정 산출물(예: 개요서, 회의록 등)에 연결된 첨부파일 목록 조회 엔드포인트. """
+    try:
+        attachments = output_DB.fetch_all_attachments(doc_type, doc_no, p_no)
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Attachments fetched successfully",
+            "PAYLOADS": attachments
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching attachments: {e}")
+
+@router.post("/output/attach_download")
+async def download_attachment(
+    doc_a_no: int = Form(...),
+    doc_type: int = Form(...),
+    doc_no: int = Form(...),
+    p_no: int = Form(...)
+):
+    try:
+        attachments = output_DB.fetch_all_attachments(doc_type, doc_no, p_no)
+        attachment = None
+        for att in attachments:
+            if int(att.get("doc_a_no", -1)) == doc_a_no:
+                attachment = att
+                break
+        if not attachment:
+            raise HTTPException(status_code=404, detail="Attachment not found")
+        file_path = attachment['doc_a_path']
+        file_name = attachment['doc_a_name']
+        storage_download_url = f"{STORAGE_SERVER_URL}/otherdoc_download"
+        response = requests.post(storage_download_url, data={"file_path": file_path}, stream=True)
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=f"Storage server error: {response.text}")
+        response.raw.decode_content = True
+        temp_file_path = os.path.join(TEMP_DOWNLOAD_DIR, file_name)
+        with open(temp_file_path, "wb") as f:
+            shutil.copyfileobj(response.raw, f)
+        task = BackgroundTask(os.remove, temp_file_path)
+        return FileResponse(
+            path=temp_file_path,
+            filename=file_name,
+            media_type='application/octet-stream',
+            background=task
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error downloading attachment: {e}")
+
+@router.post("/output/attach_edit_name")
+async def edit_attachment_name(
+    doc_a_no: int = Form(...),
+    new_file_name: str = Form(...)
+):
+    """ 첨부파일 이름 수정 엔드포인트 """
+    try:
+        result = output_DB.edit_attachment_name(doc_a_no, new_file_name)
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Attachment name updated successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update attachment name")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error editing attachment name: {e}")
+
+@router.post("/output/attach_edit_path")
+async def edit_attachment_path(
+    doc_a_no: int = Form(...),
+    new_file_path: str = Form(...)
+):
+    """ 첨부파일 경로 수정 엔드포인트 """
+    try:
+        result = output_DB.edit_attachment_path(doc_a_no, new_file_path)
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Attachment path updated successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to update attachment path")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error editing attachment path: {e}")
+
+@router.post("/output/attach_delete")
+async def delete_attachment(
+    doc_a_no: int = Form(...)
+):
+    """ 첨부파일 삭제 엔드포인트 """
+    try:
+        result = output_DB.delete_one_attachment(doc_a_no)
+        if result:
+            return {"RESULT_CODE": 200, "RESULT_MSG": "Attachment deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete attachment")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting attachment: {e}")

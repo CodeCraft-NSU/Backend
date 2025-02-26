@@ -5,16 +5,15 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2025/02/11                               
+   업데이트 : 2025/02/24
                                                                              
    설명     : 계정 생성, 로그인, 세션 관리를 위한 API 엔드포인트 정의
 """
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import sys, os
-import random
-import string
+from logger import logger
+import sys, os, random, string, logging
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import account_DB
@@ -67,17 +66,21 @@ def generate_token():
     characters = string.ascii_letters + string.digits + string.punctuation
     return ''.join(random.choices(characters, k=15))
 
+
 @router.post("/acc/checksession")
 async def check_session(payload: Checksession_Payload):
     """세션 유효성 확인"""
     try:
         is_valid = account_DB.validate_user_token(payload.user_id, payload.token)
+        if isinstance(is_valid, Exception):
+            raise HTTPException(status_code=401, detail=f"Invalid session: {str(is_valid)}")
         if is_valid:
             return {"RESULT_CODE": 200, "RESULT_MSG": "Session valid"}
-        else:
-            raise HTTPException(status_code=401, detail="Invalid session token")
+        raise HTTPException(status_code=401, detail="Invalid session token")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error validating session: {str(e)}")
+        logger.debug(f"Error validating session: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error validating session: {str(e)}")
+
 
 @router.post("/acc/signup")
 async def api_acc_signup_post(payload: SignUp_Payload):
@@ -120,10 +123,8 @@ async def api_acc_signin_post(payload: Signin_Payload):
             }
         }
     except HTTPException as http_err:
-        # 명시적으로 처리된 HTTP 예외는 재사용
         raise http_err
     except Exception as e:
-        # 기타 모든 예외는 500으로 처리
         raise HTTPException(status_code=500, detail=f"Unhandled exception during login: {str(e)}")
 
 @router.post("/acc/signout")
@@ -195,9 +196,16 @@ async def api_acc_pwreset(payload: PwReset_Payload):
 @router.post("/acc/find_sname")
 async def api_acc_find_student_name(payload: FineName_Payload):
     """학번으로 학생 이름을 찾는 기능"""
-    return
+    try:
+        result = account_DB.fetch_student_name(payload.univ_id)
+        if isinstance(result, Exception) or result == None:
+            raise HTTPException(status_code=500, detail=f"Error in find student name Operation: {str(result)}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Find Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.debug(f"Error in find student name Operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in find student name Operation: {str(e)}")
 
-@router.post("/acc/find_prof")
-async def api_acc_find_professor(payload: FindProf_Payload):
-    """자신의 학과에 속한 교수 리스트를 불러오는 기능"""
-    return
+# @router.post("/acc/find_prof") # 미사용 주석처리 (25.02.15)
+# async def api_acc_find_professor(payload: FindProf_Payload):
+#     """자신의 학과에 속한 교수 리스트를 불러오는 기능"""
+#     return

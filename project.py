@@ -4,8 +4,8 @@
    파일명   : project.py                                                          
    생성자   : 김창환                                
                                                                               
-   생성일   : 2024/10/16                                                      
-   업데이트 : 2025/02/11                                             
+   생성일   : 2024/10/16
+   업데이트 : 2025/02/24
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -14,8 +14,9 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from logger import logger
 import random  # gen_project_uid 함수에서 사용
-import sys, os, requests, logging, json
+import sys, os, requests, json
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
@@ -24,7 +25,6 @@ import wbs
 
 router = APIRouter()
 
-# 데이터 모델 정의
 class ProjectInit(BaseModel):  
     """프로젝트 생성 클래스"""
     pname: str  # 프로젝트 이름
@@ -35,6 +35,7 @@ class ProjectInit(BaseModel):
     univ_id: int
     wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
     prof_id: int # 담당 교수의 교번
+    subject: int # 과목 코드
 
 
 class ProjectEdit(BaseModel):  
@@ -47,6 +48,7 @@ class ProjectEdit(BaseModel):
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
     wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
     prof_id: int # 담당 교수의 교번
+    subject: int # 과목 번호
 
 
 class DraftPayload(BaseModel):
@@ -61,6 +63,7 @@ class DraftPayload(BaseModel):
     pmm: int = None
     univ_id: str = None # 팀원의 학번, 사람이 여러명이라면 ;으로 구분한다. (20100000;20102222;20103333)
     prof_id: int = None
+    subject: int = None
 
 
 class ProjectLoad(BaseModel):  
@@ -108,20 +111,6 @@ class ProjectCheckUser(BaseModel):
 
 class Wizard(BaseModel):
     pid: int
-
-
-# 로거 초기화
-logging.basicConfig(
-    level=logging.DEBUG,  # 디버깅 수준 설정
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # 로그 메시지 포맷
-    handlers=[
-        logging.StreamHandler(),  # 콘솔 출력 핸들러
-        logging.FileHandler("app.log", encoding="utf-8"),  # 파일 출력 핸들러
-    ],
-)
-
-# logger 객체 생성
-logger = logging.getLogger("project_logger")  # 로거 이름 설정
 
 # 유틸리티 함수
 def gen_project_uid():
@@ -350,7 +339,7 @@ async def api_project_check_user(payload: ProjectCheckUser):
         raise HTTPException(status_code=500, detail=f"Error checking project users: {str(e)}")
 
 
-@router.post("/project/endwizard")
+@router.post("/project/endwizard") # wizard의 컨셉이 변경되었으므로, 추후 tutorial 등의 이름으로 변경 혹은 폐기 가능성 有
 async def api_complete_wizard(payload: Wizard):
     try:
         result = project_DB.complete_setup_wizard(payload.pid)
@@ -377,7 +366,8 @@ def init_draft_project(univ_id):
             "pperiod": "",
             "pmm": 0,
             "univ_id": "",
-            "prof_id": 0
+            "prof_id": 0,
+            "subject": 0
         }
         with open(f"draft/{univ_id}/draft.json", "w", encoding="utf-8") as f:
             json.dump(project_data, f, indent=4)
@@ -417,6 +407,8 @@ def save_draft_json(univ_id, draft_id, payload: DraftPayload):
         draft_entry["univ_id"] = payload.univ_id
     if payload.prof_id is not None:
         draft_entry["prof_id"] = payload.prof_id
+    if payload.subject is not None:
+        draft_entry["subject"] = payload.subject
     project_data["draft_id"][str(draft_id)] = draft_entry
     with open(project_file, "w", encoding="utf-8") as f:
         json.dump(project_data, f, indent=4, ensure_ascii=False)
@@ -474,3 +466,69 @@ async def api_load_draft_project(payload: DraftPayload):
         "draft_num": int(draft_num) - 1,
         "draft_data": draft_data
     }
+
+
+@router.post("/project/del_draft")
+async def api_delete_draft_project(payload: DraftPayload):
+    """프로젝트 임시 저장 삭제 함수"""
+
+    draft_folder = f"draft/{payload.leader_univ_id}"
+    draft_num_path = f"{draft_folder}/draft_num"
+    draft_json_path = f"{draft_folder}/draft.json"
+    if not os.path.isdir(draft_folder): # payload 값 검증
+        logger.debug(f"Draft folder not found")
+        raise HTTPException(status_code=404, detail="Draft folder not found")
+    if payload.draft_id is None:
+        logger.debug(f"Draft ID is required for deletion")
+        raise HTTPException(status_code=400, detail="Draft ID is required for deletion")
+    try:
+        with open(draft_json_path, "r", encoding="utf-8") as f:
+            draft_data = json.load(f)
+    except FileNotFoundError:
+        logger.debug(f"draft.json file not found")
+        raise HTTPException(status_code=404, detail="draft.json file not found")
+    except json.JSONDecodeError:
+        logger.debug(f"Invalid JSON format in draft.json")
+        raise HTTPException(status_code=500, detail="Invalid JSON format in draft.json")
+    draft_id_str = str(payload.draft_id)
+    if draft_id_str not in draft_data.get("draft_id", {}):
+        logger.debug(f"Draft ID not found")
+        raise HTTPException(status_code=404, detail="Draft ID not found")
+    
+    # draft_id 오름차순 정렬
+    del draft_data["draft_id"][draft_id_str]
+    sorted_drafts = {str(idx): value for idx, value in enumerate(draft_data["draft_id"].values())}
+    draft_data["draft_id"] = sorted_drafts
+    new_draft_num = len(sorted_drafts) # 최대 ID + 1
+    
+    with open(draft_json_path, "w", encoding="utf-8") as f:
+        json.dump(draft_data, f, indent=4, ensure_ascii=False)
+    with open(draft_num_path, "w") as f:
+        f.write(str(new_draft_num))
+
+    return {"RESULT_CODE": 200, "RESULT_MSG": "Draft deleted successfully"}
+
+
+@router.post("/project/load_prof")
+async def api_project_load_prof(payload: ProjectLoadUser):
+    """프로젝트의 담당 교수를 조회"""
+    try:
+        result = project_DB.fetch_project_professor_name(payload.pid)
+        if isinstance(result, Exception):
+            raise HTTPException(status_code=500, detail=f"Error in Load professor Operation: {str(result)}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.debug(f"Error in Load professor Operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in Load professor Operation: {str(e)}")
+
+@router.post("/project/count_user")
+async def api_project_count_student(payload: ProjectLoad):
+    """프로젝트에 포함된 사람의 수를 집계"""
+    try:
+        result = project_DB.fetch_project_user_count(payload.univ_id)
+        if isinstance(result, Exception):
+            raise HTTPException(status_code=500, detail=f"Error in count user Operation: {str(result)}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Count Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.debug(f"Error in count user Operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in count user Operation: {str(e)}")
