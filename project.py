@@ -20,6 +20,7 @@ import sys, os, requests, json
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
+import account_DB
 import permission
 import wbs
 
@@ -111,6 +112,9 @@ class ProjectCheckUser(BaseModel):
 
 class Wizard(BaseModel):
     pid: int
+
+class FindProf_Payload(BaseModel):
+    univ_id: int
 
 # 유틸리티 함수
 def gen_project_uid():
@@ -530,5 +534,17 @@ async def api_project_count_student(payload: ProjectLoad):
             raise HTTPException(status_code=500, detail=f"Error in count user Operation: {str(result)}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Count Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
-        logger.debug(f"Error in count user Operation: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Unexpected error in count user Operation: {str(e)}")
+        logger.debug(f"Error in count user operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in count user operation: {str(e)}")
+
+@router.post("/project/find_prof")
+async def api_project_find_professor(payload: FindProf_Payload):
+    """자신의 학과에 속한 교수 리스트를 불러오는 기능"""
+    try:
+        result = account_DB.fetch_professor_list(payload.univ_id)
+        if isinstance(result, Exception):
+            raise HTTPException(status_code=500, detail=f"Error in count user Operation: {str(result)}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Count Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.debug(f"Error in find prof operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in find prof operation: {str(e)}")

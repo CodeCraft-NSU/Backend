@@ -58,9 +58,6 @@ class PwReset_Payload(BaseModel):
 class FineName_Payload(BaseModel):
     univ_id: int
 
-class FindProf_Payload(BaseModel):
-    department: int
-
 def generate_token():
     """랜덤한 15자리 토큰 생성"""
     characters = string.ascii_letters + string.digits + string.punctuation
@@ -204,8 +201,3 @@ async def api_acc_find_student_name(payload: FineName_Payload):
     except Exception as e:
         logger.debug(f"Error in find student name Operation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error in find student name Operation: {str(e)}")
-
-# @router.post("/acc/find_prof") # 미사용 주석처리 (25.02.15)
-# async def api_acc_find_professor(payload: FindProf_Payload):
-#     """자신의 학과에 속한 교수 리스트를 불러오는 기능"""
-#     return
