@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16
-   업데이트 : 2025/02/14
+   업데이트 : 2025/02/24
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -25,7 +25,6 @@ import wbs
 
 router = APIRouter()
 
-# 데이터 모델 정의
 class ProjectInit(BaseModel):  
     """프로젝트 생성 클래스"""
     pname: str  # 프로젝트 이름
@@ -49,7 +48,7 @@ class ProjectEdit(BaseModel):
     pmm: int  # 프로젝트 관리 방법론 (프로젝트 관리 방식)
     wizard: int # 프로젝트 Setup Wizard의 완료 여부를 기록
     prof_id: int # 담당 교수의 교번
-    subject: int
+    subject: int # 과목 번호
 
 
 class DraftPayload(BaseModel):

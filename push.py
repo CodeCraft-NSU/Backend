@@ -1,8 +1,8 @@
-"""                                                          
-   CodeCraft PMS Backend Project                             
+"""
+   CodeCraft PMS Backend Project
                                                                               
-   파일명   : push.py                                                          
-   생성자   : 김창환                                
+   파일명   : push.py
+   생성자   : 김창환
                                                                               
    생성일   : 2025/01/25                                                  
    업데이트 : 2025/01/25                                     
