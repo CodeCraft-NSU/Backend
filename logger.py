@@ -22,3 +22,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("project_logger")
+
+uvicorn_access_logger = logging.getLogger("uvicorn.access") # 액세스 로그도 남게 추가 (25.02.28)
+uvicorn_access_logger.propagate = True
