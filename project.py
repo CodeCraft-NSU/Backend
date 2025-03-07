@@ -146,6 +146,7 @@ def init_file_system(PUID):
 async def api_project_init(payload: ProjectInit):
     """프로젝트 생성 및 초기화"""
     try:
+        logger.info("------------------------------")
         logger.info("Step 1: Generating Project UID")
         PUID = gen_project_uid()
         logger.info(f"Generated PUID: {PUID}")
@@ -198,6 +199,7 @@ async def api_project_init(payload: ProjectInit):
                 detail=f"Initializing WBS data failed for PUID: {PUID}",
             )
         logger.info(f"Project {PUID} created successfully")
+        logger.info("-----------------------------------")
         return {
             "RESULT_CODE": 200,
             "RESULT_MSG": "Project created successfully",
