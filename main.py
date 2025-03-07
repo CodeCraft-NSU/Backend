@@ -23,6 +23,7 @@ from fastapi import HTTPException
 from dotenv import load_dotenv
 from pathlib import Path
 from logger import logger
+from datetime import datetime
 import os
 
 # 라우터 추가 파트
@@ -116,6 +117,11 @@ async def validation_exception_handler(request, exc):
         content={"detail": exc.errors()},
     )
 
+server_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info(f"CodeCraft PMS Backend Server started at {server_start_time}")
 
 @app.get("/")
 async def root():
