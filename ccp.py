@@ -302,10 +302,39 @@ async def api_project_import(payload: ccp_payload):
         if result.get("RESULT_CODE", 500) != 200:
             raise Exception(result.get("RESULT_MSG", "Unknown error during decryption"))
         # Step 8: Restore DATABASE CSV files
-        logging.info(f"Step 8: Restoring DATABASE CSV files for project {payload.pid}")
-        csv_files = build_csv_dict(payload.pid)
-        if csv_DB.import_csv(csv_files, payload.pid) is not True:
-            raise Exception("DB import_csv function returned failure")
+        logging.info(f"Step 8: Pushing DATABASE CSV files to DB server for project {payload.pid}")
+        db_push_url = "http://192.168.50.84:70/api/ccp/push_db"
+        database_dir = f"/data/ccp/{payload.pid}/DATABASE"
+        if not os.path.exists(database_dir):
+            raise Exception("DATABASE folder not found in extracted files")
+        try:
+            files_transferred = []
+            for filename in os.listdir(database_dir):
+                if filename.endswith(".csv"):
+                    file_path = os.path.join(database_dir, filename)
+                    with open(file_path, "rb") as f:
+                        files_payload = {"file": (filename, f, "application/octet-stream")}
+                        data_payload = {"pid": str(payload.pid)}
+                        response = requests.post(db_push_url, files=files_payload, data=data_payload)
+                        if response.status_code != 200:
+                            raise Exception(f"Failed to push file {filename}: {response.text}")
+                        else:
+                            files_transferred.append(filename)
+            logging.info(f"Successfully pushed files to DB server: {files_transferred}")
+        except Exception as e:
+            logging.error(f"Failed to push DATABASE CSV files to DB server for project {payload.pid}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to push DATABASE CSV files to DB server: {str(e)}")
+        logging.info(f"Step 8.5: Restoring DATABASE CSV files for project {payload.pid}")
+        try:
+            csv_files = build_csv_dict(payload.pid)
+            logging.info(f"CSV files to import: {csv_files}")
+            import_result = csv_DB.import_csv(csv_files, payload.pid)
+            if import_result is not True:
+                raise Exception("DB import_csv function returned failure")
+            logging.info("DATABASE CSV files restored successfully")
+        except Exception as e:
+            logging.error(f"Failed to restore DATABASE CSV files for project {payload.pid}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to restore DATABASE CSV files: {str(e)}")
         # Step 9: Restore OUTPUT files
         logging.info(f"Step 9: Restoring OUTPUT files for project {payload.pid}")
         output_folder = f"/data/ccp/{payload.pid}/OUTPUT"
