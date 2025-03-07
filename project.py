@@ -257,9 +257,11 @@ async def api_project_delete(payload: ProjectDelete):
     try:
         result = project_DB.delete_project(payload.pid)
         if result is True:
+            logger.debug(f"Project {payload.pid} has been deleted successfully")
             return {"RESULT_CODE": 200, "RESULT_MSG": "Project deleted successfully"}
         raise HTTPException(status_code=500, detail="Project deletion failed")
     except Exception as e:
+        logger.debug(f"Project {payload.pid} deletion failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error during project deletion: {str(e)}")
 
 
