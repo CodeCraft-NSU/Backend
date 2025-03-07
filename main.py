@@ -121,7 +121,9 @@ server_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 @app.on_event("startup")
 async def startup_event():
+    logger.info("------------------------------------------------------------")
     logger.info(f"CodeCraft PMS Backend Server started at {server_start_time}")
+    logger.info("------------------------------------------------------------")
 
 @app.get("/")
 async def root():
