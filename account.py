@@ -58,6 +58,10 @@ class PwReset_Payload(BaseModel):
 class FineName_Payload(BaseModel):
     univ_id: int
 
+class LoadProfPayload(BaseModel):
+    subj_no: int
+
+
 def generate_token():
     """랜덤한 15자리 토큰 생성"""
     characters = string.ascii_letters + string.digits + string.punctuation
@@ -201,3 +205,27 @@ async def api_acc_find_student_name(payload: FineName_Payload):
     except Exception as e:
         logger.debug(f"Error in find student name Operation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error in find student name Operation: {str(e)}")
+
+@router.post("/acc/load_dept")
+async def api_acc_load_department():
+    """모든 학과를 조회하는 기능"""
+    try:
+        result = account_DB.fetch_dept_list()
+        if isinstance(result, Exception):
+            raise HTTPException(status_code=500, detail=f"Error in load dept Operation: {str(result)}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.debug(f"Error in load dept Operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in load dept Operation: {str(e)}")
+
+@router.post("/acc/load_prof")
+async def api_acc_load_professor_by_subject(payload: LoadProfPayload):
+    """특정 교과목이 속한 학과의 교수 리스트를 불러오는 기능"""
+    try:
+        result = account_DB.fetch_professor_list_by_subject(payload.subj_no)
+        if isinstance(result, Exception):
+            raise HTTPException(status_code=500, detail=f"Error in load prof Operation: {str(result)}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.debug(f"Error in load prof Operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error in load prof Operation: {str(e)}")
