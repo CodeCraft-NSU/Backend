@@ -197,11 +197,9 @@ async def api_acc_check(payload: AccCheck_Payload):
 async def api_acc_pwreset(payload: PwReset_Payload):
     """비밀번호 리셋(변경) 함수"""
     try:
-        logger.info("------ Password reset process started ------")
         result = account_DB.edit_user_pw(payload.univ_id, payload.pw)
         if result is True:
             logger.info(f"Password reset successful for user {payload.univ_id}")
-            logger.info("------ End of password reset process ------")
             return {"RESULT_CODE": 200, "RESULT_MSG": "OK"}
         logger.warning(f"Password update failed for user {payload.univ_id}")
         return {"RESULT_CODE": 400, "RESULT_MSG": "Password update failed"}
