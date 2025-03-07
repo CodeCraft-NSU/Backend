@@ -74,12 +74,15 @@ async def check_session(payload: Checksession_Payload):
     try:
         is_valid = account_DB.validate_user_token(payload.user_id, payload.token)
         if isinstance(is_valid, Exception):
+            logger.error(f"Invalid session for user {payload.user_id}: {str(is_valid)}", exc_info=True)
             raise HTTPException(status_code=401, detail=f"Invalid session: {str(is_valid)}")
         if is_valid:
+            logger.info(f"Session valid for user {payload.user_id}")
             return {"RESULT_CODE": 200, "RESULT_MSG": "Session valid"}
+        logger.warning(f"Invalid session token for user {payload.user_id}")
         raise HTTPException(status_code=401, detail="Invalid session token")
     except Exception as e:
-        logger.debug(f"Error validating session: {str(e)}")
+        logger.error(f"Unexpected error validating session for user {payload.user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error validating session: {str(e)}")
 
 
@@ -90,31 +93,35 @@ async def api_acc_signup_post(payload: SignUp_Payload):
         token = generate_token()
         result = account_DB.insert_user(payload, token)
         if result is True:
+            logger.info(f"User {payload.univ_id} signed up successfully")
             return {"RESULT_CODE": 200, "RESULT_MSG": "Signup successful", "PAYLOADS": {"Token": token}}
-        elif isinstance(result, tuple) and result[0] == 1062:
+        if isinstance(result, tuple) and result[0] == 1062:
+            logger.warning(f"Duplicate signup attempt: {payload.univ_id} is already registered")
             return {"RESULT_CODE": 409, "RESULT_MSG": "Duplicate entry: This univ_id is already registered"}
-        else:
-            # print(result)
-            raise HTTPException(status_code=500, detail=f"Error during signup: {str(result)}")
+        logger.error(f"Unexpected signup error: {str(result)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error during signup: {str(result)}")
     except Exception as e:
-        if "1062" in str(e):
-            return {"RESULT_CODE": 409, "RESULT_MSG": "Duplicate entry: This univ_id is already registered"}
-        else:
-            raise HTTPException(status_code=500, detail=f"Unhandled exception during signup: {str(e)}")
+        logger.error(f"Unhandled exception during signup: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unhandled exception during signup: {str(e)}")
+
 
 @router.post("/acc/signin")
 async def api_acc_signin_post(payload: Signin_Payload):
     """사용자 로그인"""
     try:
         s_no = account_DB.validate_user(payload.id, payload.pw)
-        if s_no is None:  # 로그인 실패 처리
+        if s_no is None:
+            logger.warning(f"Invalid login attempt: {payload.id}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        if isinstance(s_no, Exception):  # 예외 발생 처리
+        if isinstance(s_no, Exception):
+            logger.error(f"Internal error during validation: {str(s_no)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Internal error during validation: {str(s_no)}")
         token = generate_token()
         save_result = account_DB.save_signin_user_token(payload.id, token)
-        if isinstance(save_result, Exception):  # 토큰 저장 중 오류 처리
+        if isinstance(save_result, Exception):
+            logger.error(f"Error saving session token for user {payload.id}: {str(save_result)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error saving session token: {str(save_result)}")
+        logger.info(f"User {payload.id} signed in successfully")
         return {
             "RESULT_CODE": 200,
             "RESULT_MSG": "Login successful",
@@ -126,6 +133,7 @@ async def api_acc_signin_post(payload: Signin_Payload):
     except HTTPException as http_err:
         raise http_err
     except Exception as e:
+        logger.error(f"Unhandled exception during login for user {payload.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unhandled exception during login: {str(e)}")
 
 @router.post("/acc/signout")
@@ -134,12 +142,15 @@ async def api_acc_signout_post(payload: SignOut_Payload):
     try:
         result = account_DB.signout_user(payload.token)
         if isinstance(result, Exception):
+            logger.error(f"Error during logout: {str(result)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error during logout: {str(result)}")
         if result is True:
+            logger.info("User logged out successfully")
             return {"RESULT_CODE": 200, "RESULT_MSG": "Logout successful"}
-        else:
-            raise HTTPException(status_code=500, detail="Logout failed")
+        logger.warning("Logout failed")
+        raise HTTPException(status_code=500, detail="Logout failed")
     except Exception as e:
+        logger.error(f"Unhandled exception during logout: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unhandled exception during logout: {str(e)}")
 
 @router.post("/acc/delacc")
@@ -148,12 +159,15 @@ async def api_acc_delacc_post(payload: DelAcc_Payload):
     try:
         result = account_DB.delete_user(payload.id)
         if isinstance(result, Exception):
+            logger.error(f"Error during account deletion: {str(result)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error during account deletion: {str(result)}")
         if result is True:
+            logger.info(f"Account {payload.id} deleted successfully")
             return {"RESULT_CODE": 200, "RESULT_MSG": "Account deleted successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Account deletion failed")
+        logger.warning(f"Account deletion failed for {payload.id}")
+        raise HTTPException(status_code=500, detail="Account deletion failed")
     except Exception as e:
+        logger.error(f"Unhandled exception during account deletion: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unhandled exception during account deletion: {str(e)}")
 
 @router.post("/acc/checkacc")
@@ -165,33 +179,34 @@ async def api_acc_check(payload: AccCheck_Payload):
     """
     try:
         result = account_DB.find_user_pw(
-            univ_id = payload.univ_id,
-            name = payload.name,
-            email = payload.email,
-            id = payload.user_id
+            univ_id=payload.univ_id,
+            name=payload.name,
+            email=payload.email,
+            id=payload.user_id
         )
         if result is True:
+            logger.info(f"Account validation successful for user {payload.user_id}")
             return {"RESULT_CODE": 200, "RESULT_MSG": "OK"}
-        else:
-            # raise HTTPException(status_code=500, detail="Account validation failed")
-            return {"RESULT_CODE": 400, "RESULT_MSG": "Account validation failed"}
+        logger.warning(f"Account validation failed for user {payload.user_id}")
+        return {"RESULT_CODE": 400, "RESULT_MSG": "Account validation failed"}
     except Exception as e:
+        logger.error(f"Unhandled exception during account validation for user {payload.user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unhandled exception during account validation: {str(e)}")
 
 @router.post("/acc/resetpw")
 async def api_acc_pwreset(payload: PwReset_Payload):
     """비밀번호 리셋(변경) 함수"""
     try:
-        result = account_DB.edit_user_pw(
-            payload.univ_id,
-            payload.pw
-        )
+        logger.info("------ Password reset process started ------")
+        result = account_DB.edit_user_pw(payload.univ_id, payload.pw)
         if result is True:
+            logger.info(f"Password reset successful for user {payload.univ_id}")
+            logger.info("------ End of password reset process ------")
             return {"RESULT_CODE": 200, "RESULT_MSG": "OK"}
-        else:
-            # raise HTTPException(status_code=500, detail="Password update failed")
-            return {"RESULT_CODE": 400, "RESULT_MSG": "Password update failed"}
+        logger.warning(f"Password update failed for user {payload.univ_id}")
+        return {"RESULT_CODE": 400, "RESULT_MSG": "Password update failed"}
     except Exception as e:
+        logger.error(f"Unhandled exception while updating password for user {payload.univ_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unhandled exception while updating password: {str(e)}")
 
 @router.post("/acc/find_sname")
@@ -199,11 +214,13 @@ async def api_acc_find_student_name(payload: FineName_Payload):
     """학번으로 학생 이름을 찾는 기능"""
     try:
         result = account_DB.fetch_student_name(payload.univ_id)
-        if isinstance(result, Exception) or result == None:
+        if isinstance(result, Exception) or result is None:
+            logger.error(f"Error in find student name operation for univ_id {payload.univ_id}: {str(result)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error in find student name Operation: {str(result)}")
+        logger.info(f"Student name found for univ_id {payload.univ_id}: {result}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Find Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
-        logger.debug(f"Error in find student name Operation: {str(e)}")
+        logger.error(f"Unexpected error in find student name operation for univ_id {payload.univ_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error in find student name Operation: {str(e)}")
 
 @router.post("/acc/load_dept")
@@ -212,10 +229,12 @@ async def api_acc_load_department():
     try:
         result = account_DB.fetch_dept_list()
         if isinstance(result, Exception):
+            logger.error(f"Error in load dept operation: {str(result)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error in load dept Operation: {str(result)}")
+        logger.info("Department list retrieved successfully")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
-        logger.debug(f"Error in load dept Operation: {str(e)}")
+        logger.error(f"Unexpected error in load dept operation: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error in load dept Operation: {str(e)}")
 
 @router.post("/acc/load_prof")
@@ -224,8 +243,10 @@ async def api_acc_load_professor_by_subject(payload: LoadProfPayload):
     try:
         result = account_DB.fetch_professor_list_by_subject(payload.subj_no)
         if isinstance(result, Exception):
-            raise HTTPException(status_code=500, detail=f"Error in load prof Operation: {str(result)}")
+            logger.error(f"Error in load professor operation for subject {payload.subj_no}: {str(result)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error in load professor operation: {str(result)}")
+        logger.info(f"Professor list retrieved successfully for subject {payload.subj_no}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
-        logger.debug(f"Error in load prof Operation: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Unexpected error in load prof Operation: {str(e)}")
+        logger.error(f"Unexpected error in load professor operation for subject {payload.subj_no}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error in load professor operation: {str(e)}")
