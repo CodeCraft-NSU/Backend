@@ -639,7 +639,7 @@ async def add_other_document(
         data = {
             "fuid": file_unique_id,
             "pid": pid,
-            "univ_id": univ_id
+            "userid": univ_id
         }
 
         # 파일 읽기
