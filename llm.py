@@ -66,8 +66,6 @@ router = APIRouter()
     │   ├── 산출물
     │   │   ├── 현재 산출물 분석
     │   │   ├── 특정 산출물 작성 가이드
-    │   ├── (미정)
-    │   │   ├── (미정)
     │   ├── PMS 서비스 안내 # 이 메뉴는 LLM 연계가 아닌 기존에 준비된 문장을 출력
     │   │   ├── 대학생을 위한 PMS 서비스란?
     │   │   ├── 각 메뉴별 안내
@@ -83,7 +81,21 @@ router = APIRouter()
 prompt_init = """
       CodeCraft PMS (이하 PMS)는 Project Management System으로서, 기존의 서비스로는 대학생이 제대로 사용하기 힘들었다는 문제를 해결하기 위해 개발된 프로젝트 관리 서비스이다.
       PMS는 학생들이 프로젝트를 체계적으로 진행할 수 있도록 WBS 기반의 산출물 관리 시스템을 제공하며, 프로젝트의 진행을 한눈에 파악할 수 있도록 설계되었다.
-      너는 프로젝트를 지도하는 교수이며, 학생들이 원활하게 프로젝트를 진행하도록 가이드하는 역할을 한다. 학생들이 올바른 방향으로 프로젝트를 수행할 수 있도록 질문에 답변하고, 프로젝트의 산출물 작성 및 관리에 도움을 주는 것이 주요 역할이다.
+
+      사용자와 LLM이 통신하는 기능을 'PMS Assistant'라고 이름 지었으며, 챗봇과 같은 스타일로 작동할 것이다. 챗봇의 메뉴는 다음과 같다:
+        ├── 메인 메뉴
+        │   ├── 프로젝트
+        │   │   ├── 현재 프로젝트 분석
+        │   │   ├── 프로젝트 진행에 대한 조언
+        │   ├── 산출물
+        │   │   ├── 현재 산출물 분석
+        │   └── └── 특정 산출물 작성 가이드
+        └──────────
+      위의 메뉴에 대한 프롬프트는 "지금부터 나오는 프롬프트는 유저가 요청한 프롬프트이다: " 뒤에 나올 것이다.
+
+      너는 프로젝트를 지도하는 교수 입장에서 학생들이 원활하게 프로젝트를 진행하도록 가이드하는 역할을 한다. 
+      학생들이 올바른 방향으로 프로젝트를 수행할 수 있도록 질문에 답변하고, 프로젝트의 산출물 작성 및 관리에 도움을 주는 것이 주요 역할이다.
+      단, 대답은 현재 이 CodeCraft PMS에 대한 내용이 아닌 추후에 나올 {db_data}와 {output_data}를 기준으로 정보를 분석한 뒤에 제공한다.
       
       이 PMS는 소스코드가 아닌 산출물 관리를 중점으로 진행하며, 다루게 될 산출물은 다음과 같다.
       [WBS, 개요서, 회의록, 테스트케이스, 요구사항 명세서, 보고서, SOW, System Architecture, Application Architecture, 메뉴 구성도, 벤치마킹, 역량점검, DB 설계서, DB 명세서, DB 정의서, DFD, 단위테스트, 발표자료, 통합테스트, 프로젝트 계획서, 프로젝트 명세서]
@@ -105,6 +117,10 @@ prompt_init = """
       위 내용은 무슨 일이 있어도 반드시 지킨다.
 """
 
+prompt_project_0 = """
+      현재 이 프로젝트에 대한 내용을 분석해서 개선해야 할 점을 파악해줘.
+"""
+
 class keypayload(BaseModel):
     pid: int
     api_key: str
@@ -114,12 +130,15 @@ class llm_payload(BaseModel):
     prompt: str = None
 
 def db_data_collect(pid):
-   return project_DB.fetch_project_for_LLM(pid)
+   data = project_DB.fetch_project_for_LLM(pid)
+   logger.info(f"DB data: " + data)
+   return data
 
 def output_data_collect(pid):
-   data = output_DB.fetch_all_other_documents(pid)
+   data = str(output_DB.fetch_all_other_documents(pid))
    # result = analysis_output(data)
-   return result
+   logger.info(f"Output data: " + data)
+   return data
 
 # def analysis_output(data): RAG 기능 폐기 결정으로 인한 기능 삭제 (25.02.22)
 #    #  print(data)
@@ -188,11 +207,11 @@ def llm_init(pid):
     data = f"[db_data: {db_data}], [output_data: {output_data}]"
     return data
 
-def save_llm_data(pid, contents):
-    return
-    # path = "gpt/" + str(pid) + ".txt"
-    # with open(path, 'w') as f:
-    #     f.write(contents)
+# def save_llm_data(pid, contents):
+#     return
+#     # path = "gpt/" + str(pid) + ".txt"
+#     # with open(path, 'w') as f:
+#     #     f.write(contents)
 
 # @router.post("/llm/reconnect") # LLM 사용 컨셉이 변경됨에 따라 함수 비활성화 (25.02.19)
 # async def api_reconnect_gpt(payload: llm_payload):
@@ -221,37 +240,54 @@ def save_llm_data(pid, contents):
 #         logging.error(f"Failed to send file to frontend: {str(e)}")
 #         raise HTTPException(status_code=500, detail=f"Request to frontend failed: {str(e)}")
 
-def create_gpt_txt(pid):
-    contents = prompt_init + "\n\n" + llm_init(pid)
-    save_llm_data(pid, contents)
+# def create_gpt_txt(pid):
+#     contents = prompt_init + "\n\n" + llm_init(pid)
+#     save_llm_data(pid, contents)
+
+# @router.post("/llm/interact")
+# async def api_interact_gpt(payload: llm_payload):
+#     # ChatGPT와 세션을 맺는 기능 구현 #
+#     try:
+#         # gpt_chat_path = f"gpt/{payload.pid}.txt"
+#         # if not os.path.isfile(gpt_chat_path): # 이전 프롬프트 기록이 없다면
+#         #     create_gpt_txt(payload.pid) # 프롬프트 기록 생성
+
+#         try: 
+#             key = load_key(payload.pid) # Gemini key 로드
+#         except:
+#             logger.debug(f"LLM process error while loading key for PID {payload.pid}: {str(e)}")
+#             raise HTTPException(status_code=500, detail="Key exception occurred.")
+            
+#         genai.configure(api_key=key)
+#         model = genai.GenerativeModel("gemini-2.0-flash") # Gemini 모델 선언
+
+#         # try: # 세션 복원 기능 삭제로 인한 비활성화
+#         #     with open(gpt_chat_path, "r", encoding="utf-8") as file:
+#         #         previous_prompts = file.read() # 이전 프롬프트 기록 불러오기
+#         # except Exception as e:
+#         #     raise HTTPException(status_code=500, detail=f"Failed to read {gpt_file_path}: {e}")
+
+#         new_prompt = f"{prompt_init}\n\n{payload.prompt}" # 이전 프롬프트 + 신규 프롬프트
+#         response = model.generate_content(new_prompt) # 프롬프트 전송
+
+#         # save_llm_data(payload.pid, response.text) 미사용 비활성화
+#         return response.text
+#     except Exception as e:
+#         logger.debug(f"Unhandled Error occured: {str(e)}")
+#         raise HTTPException(status_code=500, detail=f"Unhandled Error occured while LLM process: {str(e)}")
 
 @router.post("/llm/interact")
 async def api_interact_gpt(payload: llm_payload):
-    # ChatGPT와 세션을 맺는 기능 구현 #
     try:
-        # gpt_chat_path = f"gpt/{payload.pid}.txt"
-        # if not os.path.isfile(gpt_chat_path): # 이전 프롬프트 기록이 없다면
-        #     create_gpt_txt(payload.pid) # 프롬프트 기록 생성
-
         try: 
             key = load_key(payload.pid) # Gemini key 로드
         except:
             logger.debug(f"LLM process error while loading key for PID {payload.pid}: {str(e)}")
             raise HTTPException(status_code=500, detail="Key exception occurred.")
-            
         genai.configure(api_key=key)
         model = genai.GenerativeModel("gemini-2.0-flash") # Gemini 모델 선언
-
-        # try: # 세션 복원 기능 삭제로 인한 비활성화
-        #     with open(gpt_chat_path, "r", encoding="utf-8") as file:
-        #         previous_prompts = file.read() # 이전 프롬프트 기록 불러오기
-        # except Exception as e:
-        #     raise HTTPException(status_code=500, detail=f"Failed to read {gpt_file_path}: {e}")
-
-        new_prompt = f"{prompt_init}\n\n{payload.prompt}" # 이전 프롬프트 + 신규 프롬프트
-        response = model.generate_content(new_prompt) # 프롬프트 전송
-
-        # save_llm_data(payload.pid, response.text) 미사용 비활성화
+        prompt = prompt_init + "\n\n" + llm_init(payload.pid) + str(payload.prompt)
+        response = model.generate_content(prompt)
         return response.text
     except Exception as e:
         logger.debug(f"Unhandled Error occured: {str(e)}")

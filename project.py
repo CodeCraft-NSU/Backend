@@ -459,12 +459,10 @@ async def api_save_draft_project(payload: DraftPayload):
             logger.error(f"Failed to initialize draft project for university ID {payload.leader_univ_id}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to init draft project")
     else:
-        with open(draft_path, "r") as f:
-            id = int(f.read().strip())
+        with open(draft_path, "r") as f: id = int(f.read().strip())
     if payload.new:
         save_draft_json(payload.leader_univ_id, id, payload)
-        with open(draft_path, "w") as f:
-            f.write(str(id + 1))
+        with open(draft_path, "w") as f: f.write(str(id + 1))
     else:
         if payload.draft_id is None:
             logger.warning(f"Draft ID is required for updating for university ID {payload.leader_univ_id}")
