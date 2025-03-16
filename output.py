@@ -632,13 +632,18 @@ async def add_other_documents(
     """
     기타 산출물 추가 API
     """
+    logger.info("------------------------------------------------------------")
+    logger.info("Starting process to add other documents")
     try:
         load_dotenv()
         headers = {"Authorization": os.getenv('ST_KEY')}
         attachments = []
-        
+
         for file in files:
+            logger.info(f"Processing file: {file.filename}")
             file_unique_id = gen_file_uid()
+            logger.info(f"Generated file unique id: {file_unique_id}")
+
             data = {
                 "fuid": file_unique_id,
                 "pid": pid,
@@ -647,7 +652,7 @@ async def add_other_documents(
             # 파일 읽기
             file_content = await file.read()
             files_payload = {"file": (file.filename, file_content, file.content_type)}
-            # 스토리지 서버에 파일 업로드
+            logger.info(f"Uploading file {file.filename} to storage server")
             response = requests.post(
                 "http://192.168.50.84:10080/api/output/otherdoc_add",
                 files=files_payload,
@@ -655,19 +660,29 @@ async def add_other_documents(
                 headers=headers
             )
             if response.status_code != 200:
+                error_msg = (f"File upload failed for {file.filename} with status code "
+                             f"{response.status_code}: {response.text}")
+                logger.error(error_msg)
                 raise HTTPException(
                     status_code=response.status_code,
-                    detail=f"Error: {response.status_code} - {response.text}"
+                    detail=error_msg
                 )
             response_data = response.json()
             file_path = response_data.get("FILE_PATH")
-            # 업로드 날짜 변환
             uploaded_date = response_data.get("uploaded_date")
             if uploaded_date:
-                uploaded_date = datetime.strptime(uploaded_date, "%y%m%d-%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+                try:
+                    uploaded_date = datetime.strptime(uploaded_date, "%y%m%d-%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+                except Exception as parse_error:
+                    error_msg = f"Error parsing uploaded_date for {file.filename}: {str(parse_error)}"
+                    logger.error(error_msg, exc_info=True)
+                    raise HTTPException(status_code=500, detail=error_msg)
             else:
-                raise HTTPException(status_code=500, detail="uploaded_date is missing in the response")
-            # DB에 메타데이터 저장
+                error_msg = f"uploaded_date is missing in the response for {file.filename}"
+                logger.error(error_msg)
+                raise HTTPException(status_code=500, detail=error_msg)
+            
+            logger.info(f"Saving metadata to database for file: {file.filename}")
             db_result = output_DB.add_other_document(
                 file_unique_id=file_unique_id,
                 file_name=file.filename,
@@ -677,26 +692,37 @@ async def add_other_documents(
                 pid=pid
             )
             if not db_result:
+                logger.error(f"Database failed to save metadata for {file.filename}. Removing file from storage.")
                 os.remove(file_path)
                 raise HTTPException(
                     status_code=500,
                     detail="File uploaded but failed to save metadata to the database."
                 )
+            logger.info(f"File processed successfully: {file.filename}")
             attachments.append({
                 "file_unique_id": file_unique_id,
                 "file_name": file.filename,
                 "file_path": file_path,
                 "file_date": uploaded_date
             })
+
+        logger.info("All files processed successfully")
         return {
             "RESULT_CODE": 200,
             "RESULT_MSG": "Files uploaded and metadata saved successfully.",
             "PAYLOADS": attachments
         }
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+    except HTTPException as http_exc:
+        logger.error(f"HTTPException occurred: {http_exc.detail}")
+        raise http_exc
+    except requests.exceptions.RequestException as req_exc:
+        logger.error("RequestException occurred", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Request failed: {str(req_exc)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error during file upload and metadata saving: {str(e)}")
+        logger.error("Unexpected error occurred during file upload and metadata saving", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+    finally:
+        logger.info("------------------------------------------------------------")
 
       
 @router.post("/output/otherdoc_edit_path")
