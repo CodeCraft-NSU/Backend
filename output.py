@@ -652,21 +652,38 @@ async def add_other_documents(
             # 파일 읽기
             file_content = await file.read()
             files_payload = {"file": (file.filename, file_content, file.content_type)}
-            logger.info(f"Uploading file {file.filename} to storage server")
-            response = requests.post(
-                "http://192.168.50.84:10080/api/output/otherdoc_add",
-                files=files_payload,
-                data=data,
-                headers=headers
-            )
-            if response.status_code != 200:
-                error_msg = (f"File upload failed for {file.filename} with status code "
-                             f"{response.status_code}: {response.text}")
-                logger.error(error_msg)
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_msg
-                )
+            # 최대 3회 재시도
+            max_attempts = 3
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    logger.info(f"Uploading file {file.filename} to storage server (Attempt {attempt})")
+                    response = requests.post(
+                        "http://192.168.50.84:10080/api/output/otherdoc_add",
+                        files=files_payload,
+                        data=data,
+                        headers=headers
+                    )
+                    if response.status_code == 200:
+                        # 업로드 성공 시 루프 종료
+                        logger.info(f"File upload succeeded on attempt {attempt} for {file.filename}")
+                        break
+                    else:
+                        error_msg = (f"File upload failed for {file.filename} on attempt {attempt} "
+                                     f"with status code {response.status_code}: {response.text}")
+                        logger.error(error_msg)
+                        if attempt == max_attempts:
+                            raise HTTPException(
+                                status_code=response.status_code,
+                                detail=error_msg
+                            )
+                except requests.exceptions.RequestException as req_exc:
+                    logger.error(f"RequestException on attempt {attempt} for file {file.filename}: {str(req_exc)}", exc_info=True)
+                    if attempt == max_attempts:
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Request failed for {file.filename} after {attempt} attempts: {str(req_exc)}"
+                        )
+            # 업로드 응답 처리
             response_data = response.json()
             file_path = response_data.get("FILE_PATH")
             uploaded_date = response_data.get("uploaded_date")
@@ -681,7 +698,6 @@ async def add_other_documents(
                 error_msg = f"uploaded_date is missing in the response for {file.filename}"
                 logger.error(error_msg)
                 raise HTTPException(status_code=500, detail=error_msg)
-            
             logger.info(f"Saving metadata to database for file: {file.filename}")
             db_result = output_DB.add_other_document(
                 file_unique_id=file_unique_id,
@@ -705,7 +721,6 @@ async def add_other_documents(
                 "file_path": file_path,
                 "file_date": uploaded_date
             })
-
         logger.info("All files processed successfully")
         return {
             "RESULT_CODE": 200,
@@ -715,15 +730,12 @@ async def add_other_documents(
     except HTTPException as http_exc:
         logger.error(f"HTTPException occurred: {http_exc.detail}")
         raise http_exc
-    except requests.exceptions.RequestException as req_exc:
-        logger.error("RequestException occurred", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Request failed: {str(req_exc)}")
     except Exception as e:
         logger.error("Unexpected error occurred during file upload and metadata saving", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
     finally:
         logger.info("------------------------------------------------------------")
-
+        
       
 @router.post("/output/otherdoc_edit_path")
 async def edit_otherdoc_path(file_unique_id: int = Form(...), new_file_path: str = Form(...)):
