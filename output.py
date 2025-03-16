@@ -624,8 +624,8 @@ def gen_file_uid():
         if not output_DB.is_uid_exists(tmp_uid): return tmp_uid 
 
 @router.post("/output/otherdoc_add")
-async def add_other_document(
-    file: UploadFile = File(...),
+async def add_other_documents(
+    files: List[UploadFile] = File(...),
     pid: int = Form(...),
     univ_id: int = Form(...)
 ):
@@ -635,73 +635,64 @@ async def add_other_document(
     try:
         load_dotenv()
         headers = {"Authorization": os.getenv('ST_KEY')}
-        file_unique_id = gen_file_uid()
-        data = {
-            "fuid": file_unique_id,
-            "pid": pid,
-            "userid": univ_id
-        }
-
-        # 파일 읽기
-        file_content = await file.read()
-        files = {"file": (file.filename, file_content, file.content_type)}
-
-        # 외부 요청
-        response = requests.post(
-            "http://192.168.50.84:10080/api/output/otherdoc_add",
-            files=files,
-            data=data,
-            headers=headers
-        )
-
-        # 응답 상태 코드 확인
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=response.status_code,
-                detail=f"Error: {response.status_code} - {response.text}"
+        attachments = []
+        
+        for file in files:
+            file_unique_id = gen_file_uid()
+            data = {
+                "fuid": file_unique_id,
+                "pid": pid,
+                "userid": univ_id
+            }
+            # 파일 읽기
+            file_content = await file.read()
+            files_payload = {"file": (file.filename, file_content, file.content_type)}
+            # 스토리지 서버에 파일 업로드
+            response = requests.post(
+                "http://192.168.50.84:10080/api/output/otherdoc_add",
+                files=files_payload,
+                data=data,
+                headers=headers
             )
-
-        # 응답 데이터 처리
-        response_data = response.json()
-        file_path = response_data.get("FILE_PATH")  # 외부 서버에서 반환된 파일 경로
-
-        # uploaded_date 변환
-        uploaded_date = response_data.get("uploaded_date")
-        if uploaded_date:
-            # Convert '241124-153059' to '2024-11-24 15:30:59'
-            uploaded_date = datetime.strptime(uploaded_date, "%y%m%d-%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            raise HTTPException(status_code=500, detail="uploaded_date is missing in the response")
-
-        # 메타데이터 저장
-        db_result = output_DB.add_other_document(
-            file_unique_id=file_unique_id,
-            file_name=file.filename,
-            file_path=file_path,
-            file_date=uploaded_date,  # DATETIME 형식으로 변환된 값
-            univ_id = univ_id,
-            pid=pid
-        ) # 이후 univ_id 정의 필요
-
-        # DB 저장 실패 시 파일 삭제 처리
-        if not db_result:
-            os.remove(file_path)
-            raise HTTPException(
-                status_code=500,
-                detail="File uploaded but failed to save metadata to the database."
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Error: {response.status_code} - {response.text}"
+                )
+            response_data = response.json()
+            file_path = response_data.get("FILE_PATH")
+            # 업로드 날짜 변환
+            uploaded_date = response_data.get("uploaded_date")
+            if uploaded_date:
+                uploaded_date = datetime.strptime(uploaded_date, "%y%m%d-%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                raise HTTPException(status_code=500, detail="uploaded_date is missing in the response")
+            # DB에 메타데이터 저장
+            db_result = output_DB.add_other_document(
+                file_unique_id=file_unique_id,
+                file_name=file.filename,
+                file_path=file_path,
+                file_date=uploaded_date,
+                univ_id=univ_id,
+                pid=pid
             )
-
-        # 성공 응답 반환
-        return {
-            "RESULT_CODE": 200,
-            "RESULT_MSG": "File uploaded and metadata saved successfully.",
-            "PAYLOADS": {
+            if not db_result:
+                os.remove(file_path)
+                raise HTTPException(
+                    status_code=500,
+                    detail="File uploaded but failed to save metadata to the database."
+                )
+            attachments.append({
                 "file_unique_id": file_unique_id,
                 "file_name": file.filename,
                 "file_path": file_path,
-            }
+                "file_date": uploaded_date
+            })
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Files uploaded and metadata saved successfully.",
+            "PAYLOADS": attachments
         }
-
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Request failed: {e}")
     except Exception as e:
