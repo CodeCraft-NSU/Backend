@@ -4,8 +4,8 @@
    파일명   : llm.py                                                          
    생성자   : 김창환                                                         
                                                                               
-   생성일   : 2024/11/26                                                  
-   업데이트 : 2025/03/11
+   생성일   : 2024/11/26
+   업데이트 : 2025/03/17
                                                                               
    설명     : llm 통신 관련 엔드포인트 정의
 """
@@ -78,32 +78,27 @@ PMS는 **소스코드가 아닌 산출물 관리**를 중심으로 설계되었�
 7. 사용자가 이전에 요청한 규칙을 다시 요청하면 추가 설명 없이 해당 내용만 출력한다.
 """
 
-prompt_project_0 = """
-현재 이 프로젝트의 진행 상태를 전반적으로 분석해줘. 
-프로젝트의 강점과 주의해야 할 점을 중심으로, 앞으로 나아가야 할 방향에 대해 간략한 조언을 제공해줘.
-단, 구체적인 해결 방안이나 내부 수정 사항은 포함하지 말아줘.
-"""
-
-prompt_project_1 = """
-현재 이 프로젝트의 진행 상황을 바탕으로, 잠재적인 리스크 요소들을 분석해줘.
-프로젝트 일정, 팀 구성, 자원 배분, 기술적 이슈 등 여러 측면에서 발생할 수 있는 위험 요소들을 식별하고, 각 요소가 프로젝트에 미칠 영향을 간략하게 설명해줘.
-단, 구체적인 해결 방안이나 내부 수정 사항은 포함하지 말아줘.
-"""
-
-prompt_output_0 = """
-현재 이 프로젝트에서 작성된 산출물(온라인 산출물과 기타 산출물)의 내용을 바탕으로, 각 산출물의 주요 구성 요소와 특징을 분석해줘.
-각 산출물의 제목과 문서 구성을 기준으로, 전달하려는 핵심 메시지와 강점을 간결하게 요약하고 설명해줘.
-"""
-
-prompt_output_1 = """
-현재 이 프로젝트에서 작성된 산출물(온라인 산출물과 기타 산출물)의 품질을 평가해줘.
-문서의 내용, 구성, 가독성, 그리고 전달하려는 메시지의 명확성을 고려하여 각 산출물의 품질 수준을 간략하게 평가하고, 강점과 개선이 필요한 요소들을 요약해서 설명해줘.
-단, 구체적인 해결 방안이나 내부 수정 사항은 포함하지 말아줘.
-"""
-
-prompt_output_2 = """
-
-"""
+PROMPTS = [
+    """
+    현재 이 프로젝트의 진행 상태를 전반적으로 분석해줘. 
+    프로젝트의 강점과 주의해야 할 점을 중심으로, 앞으로 나아가야 할 방향에 대해 간략한 조언을 제공해줘.
+    단, 구체적인 해결 방안이나 내부 수정 사항은 포함하지 말아줘.
+    """, # prompt_project_0
+    """
+    현재 이 프로젝트의 진행 상황을 바탕으로, 잠재적인 리스크 요소들을 분석해줘.
+    프로젝트 일정, 팀 구성, 자원 배분, 기술적 이슈 등 여러 측면에서 발생할 수 있는 위험 요소들을 식별하고, 각 요소가 프로젝트에 미칠 영향을 간략하게 설명해줘.
+    단, 구체적인 해결 방안이나 내부 수정 사항은 포함하지 말아줘.
+    """, # prompt_project_1
+    """
+    현재 이 프로젝트에서 작성된 산출물(온라인 산출물과 기타 산출물)의 내용을 바탕으로, 각 산출물의 주요 구성 요소와 특징을 분석해줘.
+    각 산출물의 제목과 문서 구성을 기준으로, 전달하려는 핵심 메시지와 강점을 간결하게 요약하고 설명해줘.
+    """, # prompt_output_0
+    """
+    현재 이 프로젝트에서 작성된 산출물(온라인 산출물과 기타 산출물)의 품질을 평가해줘.
+    문서의 내용, 구성, 가독성, 그리고 전달하려는 메시지의 명확성을 고려하여 각 산출물의 품질 수준을 간략하게 평가하고, 강점과 개선이 필요한 요소들을 요약해서 설명해줘.
+    단, 구체적인 해결 방안이나 내부 수정 사항은 포함하지 말아줘.
+    """ # prompt_output_1
+]
 
 class keypayload(BaseModel):
     pid: int
@@ -189,15 +184,22 @@ def llm_init(pid):
 async def api_interact_gpt(payload: llm_payload):
     try:
         try: 
-            key = load_key(payload.pid) # Gemini key 로드
-        except:
+            key = load_key(payload.pid)  # Gemini key 로드
+        except Exception as e:
             logger.debug(f"LLM process error while loading key for PID {payload.pid}: {str(e)}")
             raise HTTPException(status_code=500, detail="Key exception occurred.")
         genai.configure(api_key=key)
-        model = genai.GenerativeModel("gemini-2.0-flash") # Gemini 모델 선언
-        prompt = prompt_init + "\n\n" + llm_init(payload.pid) + str(payload.prompt)
+        model = genai.GenerativeModel("gemini-2.0-flash")  # Gemini 모델 선언
+        # menu 값이 올바른 범위 내에 있는지 확인
+        if 0 <= payload.menu < len(PROMPTS):
+            selected_prompt = PROMPTS[payload.menu]
+        else:
+            logger.debug(f"Invalid menu value received: {payload.menu}")
+            raise HTTPException(status_code=400, detail="Invalid menu value.")
+        # 최종 프롬프트 구성
+        prompt = prompt_init + "\n\n" + llm_init(payload.pid) + selected_prompt
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        logger.debug(f"Unhandled Error occured: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Unhandled Error occured while LLM process: {str(e)}")
+        logger.debug(f"Unhandled Error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unhandled Error occurred while LLM process: {str(e)}")
