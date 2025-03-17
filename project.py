@@ -249,8 +249,9 @@ async def api_project_load(payload: ProjectLoad):
                 "pperiod": f"{project['p_start']}-{project['p_end']}",
                 "pmm": project["p_method"],
                 "wizard": project["p_wizard"],
-                "wizard": project["p_wizard"],
-                "wizard": project["p_wizard"],
+                "profno": project["f_no"],
+                "profname": project["f_name"],
+                "subno": project["subj_no"],
             }
             for project in project_info
         ]
