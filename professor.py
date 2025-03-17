@@ -93,7 +93,7 @@ async def api_prof_signin_post(payload: Signin_Payload):
 async def api_prof_signout_post(payload: Token_Payload):
     """사용자 로그아웃"""
     try:
-        result = account_DB.signout_user(payload.token)
+        result = account_DB.signout_professor(payload.token)
         if isinstance(result, Exception):
             logger.error(f"Error during logout: {str(result)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error during logout: {str(result)}")
