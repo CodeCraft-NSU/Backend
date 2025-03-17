@@ -5,7 +5,7 @@
     생성자   : 김창환
 
     생성일   : 2024/10/20
-    업데이트 : 2025/01/21
+    업데이트 : 2025/02/26
 
     설명     : 산출물의 생성, 수정, 조회, 삭제, 업로드를 위한 API 엔드포인트 정의
 """
@@ -624,89 +624,118 @@ def gen_file_uid():
         if not output_DB.is_uid_exists(tmp_uid): return tmp_uid 
 
 @router.post("/output/otherdoc_add")
-async def add_other_document(
-    file: UploadFile = File(...),
+async def add_other_documents(
+    files: List[UploadFile] = File(...),
     pid: int = Form(...),
     univ_id: int = Form(...)
 ):
     """
     기타 산출물 추가 API
     """
+    logger.info("------------------------------------------------------------")
+    logger.info("Starting process to add other documents")
     try:
         load_dotenv()
         headers = {"Authorization": os.getenv('ST_KEY')}
-        file_unique_id = gen_file_uid()
-        data = {
-            "fuid": file_unique_id,
-            "pid": pid,
-            "univ_id": univ_id
-        }
+        attachments = []
 
-        # 파일 읽기
-        file_content = await file.read()
-        files = {"file": (file.filename, file_content, file.content_type)}
+        for file in files:
+            logger.info(f"Processing file: {file.filename}")
+            file_unique_id = gen_file_uid()
+            logger.info(f"Generated file unique id: {file_unique_id}")
 
-        # 외부 요청
-        response = requests.post(
-            "http://192.168.50.84:10080/api/output/otherdoc_add",
-            files=files,
-            data=data,
-            headers=headers
-        )
-
-        # 응답 상태 코드 확인
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=response.status_code,
-                detail=f"Error: {response.status_code} - {response.text}"
+            data = {
+                "fuid": file_unique_id,
+                "pid": pid,
+                "userid": univ_id
+            }
+            # 파일 읽기
+            file_content = await file.read()
+            files_payload = {"file": (file.filename, file_content, file.content_type)}
+            # 최대 3회 재시도
+            max_attempts = 3
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    logger.info(f"Uploading file {file.filename} to storage server (Attempt {attempt})")
+                    response = requests.post(
+                        "http://192.168.50.84:10080/api/output/otherdoc_add",
+                        files=files_payload,
+                        data=data,
+                        headers=headers
+                    )
+                    if response.status_code == 200:
+                        # 업로드 성공 시 루프 종료
+                        logger.info(f"File upload succeeded on attempt {attempt} for {file.filename}")
+                        break
+                    else:
+                        error_msg = (f"File upload failed for {file.filename} on attempt {attempt} "
+                                     f"with status code {response.status_code}: {response.text}")
+                        logger.error(error_msg)
+                        if attempt == max_attempts:
+                            raise HTTPException(
+                                status_code=response.status_code,
+                                detail=error_msg
+                            )
+                except requests.exceptions.RequestException as req_exc:
+                    logger.error(f"RequestException on attempt {attempt} for file {file.filename}: {str(req_exc)}", exc_info=True)
+                    if attempt == max_attempts:
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Request failed for {file.filename} after {attempt} attempts: {str(req_exc)}"
+                        )
+            # 업로드 응답 처리
+            response_data = response.json()
+            file_path = response_data.get("FILE_PATH")
+            uploaded_date = response_data.get("uploaded_date")
+            if uploaded_date:
+                try:
+                    uploaded_date = datetime.strptime(uploaded_date, "%y%m%d-%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+                except Exception as parse_error:
+                    error_msg = f"Error parsing uploaded_date for {file.filename}: {str(parse_error)}"
+                    logger.error(error_msg, exc_info=True)
+                    raise HTTPException(status_code=500, detail=error_msg)
+            else:
+                error_msg = f"uploaded_date is missing in the response for {file.filename}"
+                logger.error(error_msg)
+                raise HTTPException(status_code=500, detail=error_msg)
+            logger.info(f"Saving metadata to database for file: {file.filename}")
+            db_result = output_DB.add_other_document(
+                file_unique_id=file_unique_id,
+                file_name=file.filename,
+                file_path=file_path,
+                file_date=uploaded_date,
+                univ_id=univ_id,
+                pid=pid
             )
-
-        # 응답 데이터 처리
-        response_data = response.json()
-        file_path = response_data.get("FILE_PATH")  # 외부 서버에서 반환된 파일 경로
-
-        # uploaded_date 변환
-        uploaded_date = response_data.get("uploaded_date")
-        if uploaded_date:
-            # Convert '241124-153059' to '2024-11-24 15:30:59'
-            uploaded_date = datetime.strptime(uploaded_date, "%y%m%d-%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            raise HTTPException(status_code=500, detail="uploaded_date is missing in the response")
-
-        # 메타데이터 저장
-        db_result = output_DB.add_other_document(
-            file_unique_id=file_unique_id,
-            file_name=file.filename,
-            file_path=file_path,
-            file_date=uploaded_date,  # DATETIME 형식으로 변환된 값
-            univ_id = univ_id,
-            pid=pid
-        ) # 이후 univ_id 정의 필요
-
-        # DB 저장 실패 시 파일 삭제 처리
-        if not db_result:
-            os.remove(file_path)
-            raise HTTPException(
-                status_code=500,
-                detail="File uploaded but failed to save metadata to the database."
-            )
-
-        # 성공 응답 반환
-        return {
-            "RESULT_CODE": 200,
-            "RESULT_MSG": "File uploaded and metadata saved successfully.",
-            "PAYLOADS": {
+            if not db_result:
+                logger.error(f"Database failed to save metadata for {file.filename}. Removing file from storage.")
+                os.remove(file_path)
+                raise HTTPException(
+                    status_code=500,
+                    detail="File uploaded but failed to save metadata to the database."
+                )
+            logger.info(f"File processed successfully: {file.filename}")
+            attachments.append({
                 "file_unique_id": file_unique_id,
                 "file_name": file.filename,
                 "file_path": file_path,
-            }
+                "file_date": uploaded_date
+            })
+        logger.info("All files processed successfully")
+        return {
+            "RESULT_CODE": 200,
+            "RESULT_MSG": "Files uploaded and metadata saved successfully.",
+            "PAYLOADS": attachments
         }
-
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Request failed: {e}")
+    except HTTPException as http_exc:
+        logger.error(f"HTTPException occurred: {http_exc.detail}")
+        raise http_exc
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error during file upload and metadata saving: {str(e)}")
-
+        logger.error("Unexpected error occurred during file upload and metadata saving", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+    finally:
+        logger.info("------------------------------------------------------------")
+        
       
 @router.post("/output/otherdoc_edit_path")
 async def edit_otherdoc_path(file_unique_id: int = Form(...), new_file_path: str = Form(...)):

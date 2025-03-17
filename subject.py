@@ -5,7 +5,7 @@
    생성자   : 김창환                                                         
                                                                               
    생성일   : 2025/02/14                                             
-   업데이트 : 2025/02/14                                      
+   업데이트 : 2025/03/08
                                                                               
    설명     : 교과목 관련 엔드포인트 정의
 """
@@ -30,11 +30,12 @@ async def api_subject_load_all():
     try:
         result = subject_DB.fetch_subject_list()
         if isinstance(result, Exception):
-            raise HTTPException(status_code=500, detail=f"Error in Load all Operation: {str(result)}")
+            raise Exception(f"Database error: {str(result)}")
+        logger.info(f"Successfully loaded {len(result)} subjects.")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
-        logger.debug(f"Error in Load all Operation: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Unexpected error in Load all Operation: {str(e)}")
+        logger.error(f"Error while loading all subjects: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error in Load all subjects: {str(e)}")
 
 @router.post("/subject/load_dept")
 async def api_subject_load_by_dept(payload: SubjectPayload):
@@ -42,11 +43,12 @@ async def api_subject_load_by_dept(payload: SubjectPayload):
     try:
         result = subject_DB.fetch_subject_list_of_dept(payload.dno)
         if isinstance(result, Exception):
-            raise HTTPException(status_code=500, detail=f"Error in Load dept Operation: {str(result)}")
+            raise Exception(f"Database error: {str(result)}")
+        logger.info(f"Successfully loaded {len(result)} subjects for department {payload.dno}.")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
-        logger.debug(f"Error in Load dept Operation: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Unexpected error in Load dept Operation: {str(e)}")
+        logger.error(f"Error while loading subjects for department {payload.dno}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error in Load subjects for department: {str(e)}")
 
 @router.post("/subject/load_student")
 async def api_subject_load_by_student(payload: SubjectPayload):
@@ -54,8 +56,9 @@ async def api_subject_load_by_student(payload: SubjectPayload):
     try:
         result = subject_DB.fetch_subject_list_of_student(payload.univ_id)
         if isinstance(result, Exception):
-            raise HTTPException(status_code=500, detail=f"Error in Load student Operation: {str(result)}")
+            raise Exception(f"Database error: {str(result)}")
+        logger.info(f"Successfully loaded {len(result)} subjects for student {payload.univ_id}.")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
-        logger.debug(f"Error in Load student Operation: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Unexpected error in Load student Operation: {str(e)}")
+        logger.error(f"Error while loading subjects for student {payload.univ_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error in Load subjects for student: {str(e)}")

@@ -39,9 +39,7 @@ def init_wbs(data, pid):
         init_result = wbs_DB.add_multiple_wbs(data, pid)
         if init_result != True:
             raise HTTPException(status_code=500, detail=f"Failed to add init WBS data. Error: {init_result}")
-        
         return {"RESULT_CODE": 200, "RESULT_MSG": "WBS init successful"}
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error during WBS batch update: {str(e)}")
 

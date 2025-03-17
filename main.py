@@ -5,7 +5,7 @@
    생성자   : 김창환                                                         
                                                                               
    생성일   : 2024/10/14                                                       
-   업데이트 : 2025/02/14
+   업데이트 : 2025/03/08
                                                                               
    설명     : FastAPI 서버 설정 및 계정, 프로젝트, 업무, 산출물 관리 라우터 포함                  
 """
@@ -23,6 +23,7 @@ from fastapi import HTTPException
 from dotenv import load_dotenv
 from pathlib import Path
 from logger import logger
+from datetime import datetime
 import os
 
 # 라우터 추가 파트
@@ -37,6 +38,7 @@ from ccp import router as ccp_router
 from permission import router as permission_router
 from docs_converter import router as docs_router
 from subject import router as subject_router
+from professor import router as professor_router
 #from test import router as test_router  # Frontend Axios에서 API 통신 테스트를 위한 라우터
 
 # Database Project와의 연동을 위해 각 Router에 sys.path 경로 정의 필요
@@ -116,6 +118,13 @@ async def validation_exception_handler(request, exc):
         content={"detail": exc.errors()},
     )
 
+server_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("------------------------------------------------------------")
+    logger.info(f"CodeCraft PMS Backend Server started at {server_start_time}")
+    logger.info("------------------------------------------------------------")
 
 @app.get("/")
 async def root():
@@ -134,4 +143,5 @@ app.include_router(permission_router, prefix="/api")
 app.include_router(docs_router, prefix="/api")
 app.include_router(ccp_router, prefix="/api")
 app.include_router(subject_router, prefix="/api")
+app.include_router(professor_router, prefix="/api")
 #app.include_router(test_router, prefix="/api")  # 정식 Release 전 Delete 필요

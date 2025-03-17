@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2025/02/15
-   업데이트 : 2025/02/15
+   업데이트 : 2025/02/28
                                                                              
    설명     : 디버깅 관련 로깅 함수 정의
 """
@@ -22,3 +22,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("project_logger")
+
+uvicorn_access_logger = logging.getLogger("uvicorn.access")  # 액세스 로그도 남게 추가 (25.02.28)
+uvicorn_access_logger.handlers.clear()
+uvicorn_access_logger.propagate = True
