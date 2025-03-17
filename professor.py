@@ -30,6 +30,9 @@ class Checksession_payload(BaseModel):
     user_id: str
     token: str
 
+class Profnum_Payload(BaseModel):
+    f_no: int
+
 
 def generate_token():
     """랜덤한 15자리 토큰 생성"""
@@ -108,7 +111,7 @@ async def api_prof_check_account_type(payload: Token_Payload):
         result = account_DB.check_user_type(payload.token)
         if isinstance(result, Exception):
             logger.info(f"function api_prof_check_account_type failed: {str(result)}")
-            raise Exception(f"check_acc failed")
+            raise HTTPException(status_code=500, detail=f"check_acc failed")
         elif result == 0:
             logger.warning(f"function waring api_prof_check_account_type: Token {payload.token} isn't found in the database.")
             raise HTTPException(status_code=404, detail=f"Token {payload.token} isn't found in the database.")
@@ -116,3 +119,16 @@ async def api_prof_check_account_type(payload: Token_Payload):
     except Exception as e:
         logger.error(f"Error while check account token {payload.token}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error in check token operation: {str(e)}")
+
+@router.post("/prof/load_project")
+async def api_prof_load_project_info(payload: Profnum_Payload):
+    """교수용 프로젝트 로드 함수"""
+    try:
+        result = project_DB.fetch_project_info_for_professor(payload.f_no)
+        if isinstance(result, Exception):
+            logger.info(f"function api_prof_load_project_info failed: {str(result)}")
+            raise HTTPException(status_code=500, detail=f"load_project failed")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Check Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.error(f"Error while load project {payload.f_no}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error in load project operation: {str(e)}")
