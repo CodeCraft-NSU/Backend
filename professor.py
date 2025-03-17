@@ -19,6 +19,8 @@ sys.path.append(os.path.abspath('/data/Database Project'))  # Database Projectì™
 import project_DB
 import account_DB
 
+router = APIRouter()
+
 class Signin_Payload(BaseModel):
     id: str
     pw: str
@@ -26,7 +28,7 @@ class Signin_Payload(BaseModel):
 class Token_Payload(BaseModel):
     token: str
 
-class Checksession_payload(BaseModel):
+class Checksession_Payload(BaseModel):
     user_id: str
     token: str
 
