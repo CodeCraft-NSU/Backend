@@ -36,6 +36,7 @@ class SummaryDocumentPayload(BaseModel):
     pend: str
     prange: str
     poutcomes: str
+    add_date: str
     pid: int = None
     doc_s_no: int = None  # 추가: 수정 작업에서 사용되며, 추가 작업에서는 선택적(None)
 
@@ -51,6 +52,7 @@ class OverviewDocumentPayload(BaseModel):
     pend: str
     prange: str
     pstack: str
+    add_date: str
     pid: int = None
     doc_s_no: int = None
 
@@ -88,6 +90,7 @@ class ReqSpecPayload(BaseModel):
     non_functional_priority: int
     system_item: str
     system_description: str
+    add_date: str
     pid: int = None
     doc_r_no: int = None
 
@@ -173,6 +176,7 @@ async def add_summary_document(payload: SummaryDocumentPayload):
             pend=payload.pend,
             prange=payload.prange,
             poutcomes=payload.poutcomes,
+            add_date=payload.add_date,
             pid=payload.pid
         )
         return {"RESULT_CODE": 200, "RESULT_MSG": "Summary document added successfully", "PAYLOADS": {"doc_s_no": document_id}}
@@ -195,6 +199,7 @@ async def edit_summary_document(payload: SummaryDocumentPayload):
             pend=payload.pend,
             prange=payload.prange,
             poutcomes=payload.poutcomes,
+            add_date=payload.add_date,
             doc_s_no=payload.doc_s_no
         )
         if result:
@@ -251,6 +256,7 @@ async def add_overview_document(payload: OverviewDocumentPayload):
             pend=payload.pend,
             prange=payload.prange,
             pstack=payload.pstack,
+            add_date=payload.add_date,
             pid=payload.pid
         )
         return {"RESULT_CODE": 200, "RESULT_MSG": "Overview document added successfully", "PAYLOADS": {"doc_s_no": document_id}}
@@ -275,6 +281,7 @@ async def edit_overview_document(payload: OverviewDocumentPayload):
             pend=payload.pend,
             prange=payload.prange,
             pstack=payload.pstack,
+            add_date=payload.add_date,
             doc_s_no=payload.doc_s_no
         )
         if result:
@@ -418,6 +425,7 @@ async def add_reqspec(payload: ReqSpecPayload):
             non_functional_priority=payload.non_functional_priority,
             system_item=payload.system_item,
             system_description=payload.system_description,
+            doc_r_date=payload.add_date,
             pid=payload.pid
         )
         return {"RESULT_CODE": 200, "RESULT_MSG": "ReqSpec document added successfully", "PAYLOADS": {"doc_r_no": result}}
@@ -441,6 +449,7 @@ async def edit_reqspec(payload: ReqSpecPayload):
             non_functional_priority=payload.non_functional_priority,
             system_item=payload.system_item,
             system_description=payload.system_description,
+            doc_r_date=payload.add_date,
             doc_r_no=payload.doc_r_no
         )
         if result:

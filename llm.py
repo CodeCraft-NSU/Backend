@@ -209,13 +209,7 @@ PROMPTS = [
     """, # prompt_output_0
     """
     현재 이 프로젝트의 온라인 산출물에 대한 품질 평가를 수행해줘.
-    데이터는 {db_data}와 {output_data}로 구분되며, {db_data}의 구조는 다음과 같다:
-    project: 프로젝트 정보, work_list: 업무, progress_list: 진척도 및 WBS 관련 데이터, meeting_list: 회의록, summary_list: 개요서, requirement_list: 요구사항 명세서, test_list: 테스트케이스, report_list: 보고서
-    특히 progress_list 내에서 "WBS 작성" 또는 "WBS"와 관련된 항목은 반드시 'WBS' 산출물로 인식하여 평가에 포함해줘.
-    {output_data}는 기타 산출물로 취급하며, 불필요한 산출물 리스트는 출력하지 말아줘.
-    모든 응답은 한국어로 제공하고, 불필요한 서론 없이 핵심 내용만 간결하게 답변해줘.
-    또한, 민감한 정보(예: pid)는 사용자에게 노출하지 말아줘.
-    단, 구체적인 해결 방안이나 내부 수정 사항은 포함하지 말아줘.
+    단, 불필요하게 산출물 리스트는 출력하지 말아주고, 구체적인 해결 방안이나 내부 수정 사항은 포함하지 말아줘.
     """ # prompt_output_1
 ]
 
