@@ -150,7 +150,7 @@ def db_data_collect(pid):
         except json.JSONDecodeError as e:
             logger.error("DB 데이터 파싱 실패: " + str(e))
             raise HTTPException(status_code=500, detail="Invalid DB data format.")
-    logger.info("DB data: " + json.dumps(data, ensure_ascii=False))
+    #logger.info("DB data: " + json.dumps(data, ensure_ascii=False))
     return data
 
 
@@ -176,7 +176,7 @@ def format_db_data(data: dict) -> str:
 
 def output_data_collect(pid):
    data = str(output_DB.fetch_all_other_documents(pid))
-   logger.info(f"Output data: " + data)
+   #logger.info(f"Output data: " + data)
    return data
 
 def load_key(pid):
@@ -260,6 +260,7 @@ async def api_interact_gpt(payload: llm_payload):
         # 최종 프롬프트 구성
         prompt = prompt_init + "\n\n" + llm_init(payload.pid) + selected_prompt
         response = model.generate_content(prompt)
+        logger.info(f"LLM response for project {payload.pid}, menuid {payload.menu}: {response.text}")
         return response.text
     except Exception as e:
         logger.debug(f"Unhandled Error occurred: {str(e)}")
