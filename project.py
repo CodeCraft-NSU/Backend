@@ -39,7 +39,7 @@ class ProjectInit(BaseModel):
     subject: int # 과목 코드
 
 
-class ProjectEdit(BaseModel):  
+class ProjectEdit(BaseModel):
     """프로젝트 수정 클래스"""
     pid: int  # 프로젝트의 고유번호
     pname: str  # 프로젝트 이름
@@ -555,6 +555,9 @@ async def api_project_load_prof(payload: ProjectLoadUser):
         if isinstance(result, Exception):
             logger.error(f"Error in Load professor Operation for project {payload.pid}: {str(result)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error in Load professor Operation: {str(result)}")
+        elif result == None:
+            logger.warning(f"PID {payload.pid} isn't found in the database.")
+            raise HTTPException(status_code=404, detail=f"PID {payload.pid} isn't found in the database.")
         logger.info(f"Professor loaded successfully for project {payload.pid}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:
