@@ -670,7 +670,8 @@ async def add_other_documents(
                         "http://192.168.50.84:10080/api/output/otherdoc_add",
                         files=files_payload,
                         data=data,
-                        headers=headers
+                        headers=headers,
+                        timeout=60
                     )
                     if response.status_code == 200:
                         # 업로드 성공 시 루프 종료
@@ -860,7 +861,8 @@ async def api_otherdoc_download(payload: OtherDocDownloadPayload):
                 "http://192.168.50.84:10080/api/output/otherdoc_download",
                 data={"file_path": file_path},
                 # headers={"Authorization": STORAGE_API_KEY},
-                stream=True
+                stream=True,
+                timeout=60
             )
         except requests.exceptions.RequestException as e:
             logging.error(f"Failed to request file from storage server: {str(e)}")
