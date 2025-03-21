@@ -289,7 +289,8 @@ async def api_project_import(payload: ccp_payload):
         # Step 6: Download selected CCP version
         logging.info(f"Step 6: Downloading CCP file for version {payload.ver} from Storage Server")
         selected_ccp_url = "http://192.168.50.84:10080/api/ccp/push_ccp"
-        async with httpx.AsyncClient() as client:
+        timeout = httpx.Timeout(60.0, connect=5.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(selected_ccp_url, params={"pid": payload.pid, "ver": payload.ver})
             if response.status_code != 200:
                 raise Exception(f"Storage server returned status {response.status_code}")
@@ -316,7 +317,7 @@ async def api_project_import(payload: ccp_payload):
                     with open(file_path, "rb") as f:
                         files_payload = {"file": (filename, f, "application/octet-stream")}
                         data_payload = {"pid": str(payload.pid)}
-                        response = requests.post(db_push_url, files=files_payload, data=data_payload)
+                        response = requests.post(db_push_url, files=files_payload, data=data_payload, timeout=15)
                         if response.status_code != 200:
                             raise Exception(f"Failed to push file {filename}: {response.text}")
                         else:
@@ -350,7 +351,12 @@ async def api_project_import(payload: ccp_payload):
                         tar.add(full_path, arcname=rel_path)
             pull_output_url = "http://192.168.50.84:10080/api/ccp/pull_output"
             with open(archive_path, "rb") as file:
-                response = requests.post(pull_output_url, files={"file": (f"{payload.pid}_output.tar.gz", file, "application/gzip")})
+                multipart_form = {
+                    "file": (f"{payload.pid}_output.tar.gz", file, "application/gzip"),
+                    "pid": (None, str(payload.pid)),
+                    "name": (None, f"{payload.pid}_output.tar.gz")
+                }
+                response = requests.post(pull_output_url, files=multipart_form)
             if response.status_code != 200:
                 raise Exception("Failed to upload OUTPUT archive to Storage Server")
             os.remove(archive_path)
@@ -433,7 +439,7 @@ def upload_ccp_file(payload: ccp_payload, ver: int):
             files = {"file": (ccp_file_name, file, "application/octet-stream")}
             form_data = {"pid": str(payload.pid), "name": ccp_file_name}
             logging.info(f"Sending CCP file to Storage Server: {storage_url}")
-            response = requests.post(storage_url, files=files, data=form_data)
+            response = requests.post(storage_url, files=files, data=form_data, timeout=30)
         if response.status_code != 200:
             logging.error(f"Failed to upload CCP file for project {payload.pid}: {response.text}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to upload CCP file to Storage Server")
