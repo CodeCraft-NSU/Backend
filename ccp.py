@@ -44,7 +44,8 @@ def create_project_info():
 async def pull_storage_server(pid: int, output_path: str):
     """Storage 서버에서 특정 프로젝트의 데이터를 다운로드 및 추출하는 함수"""
     b_server_url = f"http://192.168.50.84:10080/api/ccp/push"
-    async with httpx.AsyncClient() as client:
+    timeout = httpx.Timeout(60.0, connect=5.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(b_server_url, params={"pid": pid})
             if response.status_code == 200:
