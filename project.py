@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16
-   업데이트 : 2025/03/08
+   업데이트 : 2025/03/23
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -140,6 +140,23 @@ def init_file_system(PUID):
         logger.error(f"Request to init file system failed for PUID {PUID}: {str(e)}", exc_info=True)
         return False
 
+def save_deleted_project_info(pid, pname, ccp_filename):
+    """삭제된 프로젝트의 정보를 저장"""
+    file_path = "deleted_project.json"
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f: data = json.load(f)
+        except json.JSONDecodeError: data = {}
+    else: data = {}
+    pid_str = str(pid)
+    deleted_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data[pid_str] = {
+        "pname": pname,
+        "deleted_time": deleted_time,
+        "ccp": ccp_filename
+    }
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 # API 엔드포인트
 @router.post("/project/init")
