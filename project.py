@@ -20,6 +20,7 @@ import sys, os, requests, json
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
+import csv_DB
 import account_DB
 import permission
 import wbs
@@ -140,20 +141,23 @@ def init_file_system(PUID):
         logger.error(f"Request to init file system failed for PUID {PUID}: {str(e)}", exc_info=True)
         return False
 
-def save_deleted_project_info(pid, pname, ccp_filename):
-    """삭제된 프로젝트의 정보를 저장"""
+def save_deleted_project_info(pid, pname, ccp_found: bool):
+    """삭제된 프로젝트의 정보를 deleted_project.json에 저장"""
     file_path = "deleted_project.json"
     if os.path.exists(file_path):
         try:
-            with open(file_path, "r", encoding="utf-8") as f: data = json.load(f)
-        except json.JSONDecodeError: data = {}
-    else: data = {}
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            data = {}
+    else:
+        data = {}
     pid_str = str(pid)
     deleted_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data[pid_str] = {
         "pname": pname,
         "deleted_time": deleted_time,
-        "ccp": ccp_filename
+        "ccp": ccp_found
     }
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
@@ -282,12 +286,32 @@ async def api_project_load(payload: ProjectLoad):
 @router.post("/project/delete")
 async def api_project_delete(payload: ProjectDelete):
     """프로젝트 삭제"""
-    # 존재하지 않는 PID 번호로 프로젝트를 삭제하려고 시도해도 Project deleted successfully가 나오는 문제가 존재
     try:
-        result = project_DB.delete_project(payload.pid)
+        pid = payload.pid
+        all_projects = project_DB.fetch_project_info(univ_id=0)
+        pname = None
+        for project in all_projects:
+            if project["p_no"] == pid:
+                pname = project["p_name"]
+                break
+        if pname is None:
+            logger.warning(f"Project {pid} not found in fetch_project_info.")
+            pname = "Unknown"
+        try:
+            history = csv_DB.fetch_csv_history(pid)
+            ccp_ok = isinstance(history, list) and len(history) > 0
+        except Exception as e:
+            logger.warning(f"Failed to fetch history for project {pid}: {e}")
+            ccp_ok = False
+        result = project_DB.delete_project(pid)
         if result is True:
-            logger.info(f"Project {payload.pid} has been deleted successfully")
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Project deleted successfully"}
+            save_deleted_project_info(pid, pname, ccp_ok)
+            logger.info(f"------\nProject {pid} deleted successfully\n------")
+            return {
+                "RESULT_CODE": 200,
+                "RESULT_MSG": "Project deleted successfully",
+                "CCP_FOUND": ccp_ok
+            }
         raise HTTPException(status_code=500, detail="Project deletion failed")
     except Exception as e:
         logger.error(f"Project {payload.pid} deletion failed: {str(e)}", exc_info=True)
