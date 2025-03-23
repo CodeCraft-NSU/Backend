@@ -290,7 +290,7 @@ async def api_project_delete(payload: ProjectDelete):
     """프로젝트 삭제"""
     try:
         pid = payload.pid
-        all_projects = project_DB.fetch_project_info(univ_id=0)
+        all_projects = project_DB.fetch_project_info(univ_id=payload.univ_id)
         pname = None
         for project in all_projects:
             if project["p_no"] == pid:
