@@ -30,6 +30,7 @@ class ccp_payload(BaseModel):
     univ_id: int = None
     msg: str = None
     ver: int = None
+    is_removed: int = None # 삭제된 프로젝트를 복원하는 경우에만 사용; 1로 export 기능을 스킵
 
 def handle_db_result(result):
     """데이터베이스 결과 처리 함수"""
@@ -250,42 +251,47 @@ async def api_project_import(payload: ccp_payload):
         if selected_version is None:
             raise Exception(f"Version {payload.ver} not found in project history")
         logging.info(f"Selected version {payload.ver} found in history")
-        # Step 2: Backup current project
-        logging.info(f"Step 2: Backing up current project {payload.pid}")
-        os.makedirs(f'/data/ccp/{payload.pid}/DATABASE', exist_ok=True)
-        os.makedirs(f'/data/ccp/{payload.pid}/OUTPUT', exist_ok=True)
-        result = csv_DB.export_csv(payload.pid)
-        if not handle_db_result(result):
-            raise Exception("Failed to export DB during backup")
-        result = await pull_storage_server(payload.pid, f'/data/ccp/{payload.pid}/OUTPUT')
-        if result['RESULT_CODE'] != 200:
-            raise Exception(result['RESULT_MSG'])
-        if not encrypt_ccp_file(payload.pid):
-            raise Exception(f"Failed to encrypt project folder for backup")
-        # Step 3: Save backup history
-        logging.info("Saving backup record to DB history")
-        payload.msg = f"Revert {highest_ver} to {payload.ver}"
-        backup_ver = csv_DB.insert_csv_history(payload.pid, payload.univ_id, payload.msg)
-        if backup_ver is None:
-            raise Exception("Failed to insert backup history record")
-        logging.info(f"Backup history recorded as version {backup_ver}")
-        # Step 4: Upload backup to Storage Server
-        history = csv_DB.fetch_csv_history(payload.pid)
-        version = str(max(record['ver'] for record in history))
-        ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
-        ccp_file_name = f"{payload.pid}_{version}.ccp"
-        storage_url = "http://192.168.50.84:10080/api/ccp/pull"
-        logging.info(f"Uploading backup CCP file to Storage Server: {ccp_file_name}")
-        with open(ccp_file_path, "rb") as file:
-            files = {"file": (ccp_file_name, file, "application/octet-stream")}
-            form_data = {"pid": str(payload.pid), "name": ccp_file_name}
-            response = requests.post(storage_url, files=files, data=form_data)
-        if response.status_code != 200:
-            raise Exception("Failed to upload backup CCP file")
-        # Step 5: Remove temporary backup files
-        shutil.rmtree(f'/data/ccp/{payload.pid}', ignore_errors=True)
-        os.remove(f'/data/ccp/{payload.pid}.ccp')
-        logging.info("Backup completed and temporary files removed")
+
+        # Export(백업) 기능: is_removed가 1이면 이 기능을 비활성화
+        if payload.is_removed != 1:
+            # Step 2: Backup current project
+            logging.info(f"Step 2: Backing up current project {payload.pid}")
+            os.makedirs(f'/data/ccp/{payload.pid}/DATABASE', exist_ok=True)
+            os.makedirs(f'/data/ccp/{payload.pid}/OUTPUT', exist_ok=True)
+            result = csv_DB.export_csv(payload.pid)
+            if not handle_db_result(result):
+                raise Exception("Failed to export DB during backup")
+            result = await pull_storage_server(payload.pid, f'/data/ccp/{payload.pid}/OUTPUT')
+            if result['RESULT_CODE'] != 200:
+                raise Exception(result['RESULT_MSG'])
+            if not encrypt_ccp_file(payload.pid):
+                raise Exception(f"Failed to encrypt project folder for backup")
+            # Step 3: Save backup history
+            logging.info("Saving backup record to DB history")
+            payload.msg = f"Revert {highest_ver} to {payload.ver}"
+            backup_ver = csv_DB.insert_csv_history(payload.pid, payload.univ_id, payload.msg)
+            if backup_ver is None:
+                raise Exception("Failed to insert backup history record")
+            logging.info(f"Backup history recorded as version {backup_ver}")
+            # Step 4: Upload backup to Storage Server
+            history = csv_DB.fetch_csv_history(payload.pid)
+            version = str(max(record['ver'] for record in history))
+            ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
+            ccp_file_name = f"{payload.pid}_{version}.ccp"
+            storage_url = "http://192.168.50.84:10080/api/ccp/pull"
+            logging.info(f"Uploading backup CCP file to Storage Server: {ccp_file_name}")
+            with open(ccp_file_path, "rb") as file:
+                files = {"file": (ccp_file_name, file, "application/octet-stream")}
+                form_data = {"pid": str(payload.pid), "name": ccp_file_name}
+                response = requests.post(storage_url, files=files, data=form_data)
+            if response.status_code != 200:
+                raise Exception("Failed to upload backup CCP file")
+            # Step 5: Remove temporary backup files
+            shutil.rmtree(f'/data/ccp/{payload.pid}', ignore_errors=True)
+            os.remove(f'/data/ccp/{payload.pid}.ccp')
+            logging.info("Backup completed and temporary files removed")
+        else:
+            logging.info("Export function is disabled (is_removed=1): skipping steps 2 to 5.")
         # Step 6: Download selected CCP version
         logging.info(f"Step 6: Downloading CCP file for version {payload.ver} from Storage Server")
         selected_ccp_url = "http://192.168.50.84:10080/api/ccp/push_ccp"
@@ -367,7 +373,7 @@ async def api_project_import(payload: ccp_payload):
     except Exception as e:
         logging.error(f"Error during project import process for PID {payload.pid}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error during project import: {str(e)}")
-    # 복원 실패 시 revert 기능 추가해야 함
+
 
 def initialize_folder(pid: int):
     """백업/추출을 위한 폴더를 초기화한다."""
