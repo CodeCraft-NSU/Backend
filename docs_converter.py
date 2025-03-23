@@ -320,7 +320,8 @@ async def docs_convert(payload: ConverterPayload):
         elif payload.doc_type == 1:  # 회의록
             return process_meeting_minutes(payload.doc_s_no)
         elif payload.doc_type == 2: # 테스트 케이스
-            return process_testcase(payload.doc_s_no)
+            # return process_testcase(payload.doc_s_no) # 테스트 케이스 컨셉 변경에 따라 문서 변환 기능 비활성화 (25.03.23)
+            return {"RESULT_CODE": 410, "RESULT_MSG": "테스트 케이스의 문서 변환 기능은 지원이 종료됐습니다."}
         elif payload.doc_type == 3: # 요구사항 명세서
             return process_reqspec(payload.doc_s_no)
         elif payload.doc_type == 4: # 보고서
