@@ -77,6 +77,7 @@ class ProjectLoad(BaseModel):
 class ProjectDelete(BaseModel):  
     """프로젝트 삭제 클래스"""
     pid: int  # 삭제하려는 프로젝트의 고유번호
+    univ_id: int
 
 
 class ProjectLoadUser(BaseModel):  
