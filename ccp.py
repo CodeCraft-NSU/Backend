@@ -600,3 +600,16 @@ async def api_load_history(payload: ccp_payload):
         logging.error(f"Error occurred while loading history for project {payload.pid}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error during history load: {str(e)}")
     return {"RESULT_CODE": 200, "RESULT_MSG": "History loaded successfully", "PAYLOAD": result}
+
+@router.post("/ccp/load_history_id")
+async def api_load_history_by_univid(payload: ccp_payload):
+    """프로젝트 히스토리 로드"""
+    try:
+        result = csv_DB.fetch_csv_history_by_univid(payload.univ_id)
+        if not result:
+            raise Exception(f"Failed to load history for user {payload.univ_id}")
+        logging.info(f"History successfully loaded for user {payload.univ_id}, total records: {len(result)}")
+    except Exception as e:
+        logging.error(f"Error occurred while loading history for user {payload.univ_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error during history load: {str(e)}")
+    return {"RESULT_CODE": 200, "RESULT_MSG": "History loaded successfully", "PAYLOAD": result}
