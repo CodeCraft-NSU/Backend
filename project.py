@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from logger import logger
+from datetime import datetime
 import random  # gen_project_uid 함수에서 사용
 import sys, os, requests, json
 
