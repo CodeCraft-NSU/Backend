@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from urllib.parse import quote
 from logger import logger
+from collections import defaultdict
 import os, sys, logging, shutil, tarfile, io, struct, httpx, requests
 import traceback
 
@@ -23,6 +24,7 @@ router = APIRouter()
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import csv_DB
+import project_DB
 import push
 
 class ccp_payload(BaseModel):
@@ -368,6 +370,19 @@ async def api_project_import(payload: ccp_payload):
             os.remove(archive_path)
         else:
             logging.info("No OUTPUT files found, skipping restore process.")
+        deleted_file = "deleted_project.json"
+        pid_str = str(payload.pid)
+        if os.path.exists(deleted_file):
+            try:
+                with open(deleted_file, "r", encoding="utf-8") as f:
+                    deleted_data = json.load(f)
+                if pid_str in deleted_data:
+                    del deleted_data[pid_str]
+                    with open(deleted_file, "w", encoding="utf-8") as f:
+                        json.dump(deleted_data, f, ensure_ascii=False, indent=2)
+                    logging.info(f"Deleted project entry for PID {payload.pid} removed from deleted_project.json")
+            except Exception as e:
+                logging.warning(f"Failed to clean up deleted_project.json for PID {payload.pid}: {e}")
         logging.info(f"------ Project import process completed successfully for PID {payload.pid} ------")
         return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
     except Exception as e:
@@ -609,13 +624,49 @@ async def api_load_history(payload: ccp_payload):
 
 @router.post("/ccp/load_history_id")
 async def api_load_history_by_univid(payload: ccp_payload):
-    """프로젝트 히스토리 로드"""
+    """프로젝트 복원용 히스토리 로드"""
     try:
         result = csv_DB.fetch_csv_history_by_univid(payload.univ_id)
-        if not result:
+        if not result or not isinstance(result, list):
             raise Exception(f"Failed to load history for user {payload.univ_id}")
-        logging.info(f"History successfully loaded for user {payload.univ_id}, total records: {len(result)}")
+        deleted_file = "deleted_project.json"
+        deleted_data = {}
+        if os.path.exists(deleted_file):
+            try:
+                with open(deleted_file, "r", encoding="utf-8") as f:
+                    deleted_data = json.load(f)
+            except json.JSONDecodeError:
+                logging.warning("deleted_project.json is malformed or empty.")
+        try:
+            all_projects = project_DB.fetch_project_info(payload.univ_id)
+        except Exception as e:
+            all_projects = []
+            logging.warning(f"Failed to load active project info for univ_id {payload.univ_id}: {e}")
+        pname_lookup = {p["p_no"]: p["p_name"] for p in all_projects if "p_no" in p and "p_name" in p}
+        grouped = defaultdict(lambda: {"pname": None, "history": []})
+        for entry in result:
+            p_no = str(entry["p_no"])
+            history_item = {
+                "ver": entry["ver"],
+                "date": entry["date"],
+                "s_no": entry["s_no"],
+                "msg": entry["msg"]
+            }
+            if p_no in deleted_data:
+                grouped[p_no]["pname"] = deleted_data[p_no].get("pname")
+            elif entry["p_no"] in pname_lookup:
+                grouped[p_no]["pname"] = pname_lookup[entry["p_no"]]
+            else:
+                grouped[p_no]["pname"] = None
+            grouped[p_no]["history"].append(history_item)
+        for p_data in grouped.values():
+            p_data["history"].sort(key=lambda x: x["ver"], reverse=True)
+        logging.info(f"History successfully loaded for user {payload.univ_id}, total projects: {len(grouped)}")
     except Exception as e:
         logging.error(f"Error occurred while loading history for user {payload.univ_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error during history load: {str(e)}")
-    return {"RESULT_CODE": 200, "RESULT_MSG": "History loaded successfully", "PAYLOAD": result}
+    return {
+        "RESULT_CODE": 200,
+        "RESULT_MSG": "History loaded successfully",
+        "PAYLOAD": grouped
+    }
