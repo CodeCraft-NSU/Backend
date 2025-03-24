@@ -117,7 +117,7 @@ async def edit_task(payload: TaskEditPayload):
         )
         if not success:
             raise Exception("Task update failed.")
-        logger.info(f"Task {payload.tid} updated successfully for project {payload.pid}")
+        logger.info(f"Task {payload.tid} updated successfully")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Task updated successfully."}
     except Exception as e:
         logger.error(f"Error while editing task: {str(e)}", exc_info=True)

@@ -1,6 +1,7 @@
 .env
 llm_key.json
 app.log
+deleted_project.json
 __pycache__/
 uploaded_files/
 doc_conv/

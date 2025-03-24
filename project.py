@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16
-   업데이트 : 2025/03/08
+   업데이트 : 2025/03/23
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -15,14 +15,17 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from logger import logger
+from datetime import datetime
 import random  # gen_project_uid 함수에서 사용
 import sys, os, requests, json
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import project_DB
+import csv_DB
 import account_DB
 import permission
 import wbs
+import output
 
 router = APIRouter()
 
@@ -39,7 +42,7 @@ class ProjectInit(BaseModel):
     subject: int # 과목 코드
 
 
-class ProjectEdit(BaseModel):  
+class ProjectEdit(BaseModel):
     """프로젝트 수정 클래스"""
     pid: int  # 프로젝트의 고유번호
     pname: str  # 프로젝트 이름
@@ -75,6 +78,7 @@ class ProjectLoad(BaseModel):
 class ProjectDelete(BaseModel):  
     """프로젝트 삭제 클래스"""
     pid: int  # 삭제하려는 프로젝트의 고유번호
+    univ_id: int
 
 
 class ProjectLoadUser(BaseModel):  
@@ -140,6 +144,26 @@ def init_file_system(PUID):
         logger.error(f"Request to init file system failed for PUID {PUID}: {str(e)}", exc_info=True)
         return False
 
+def save_deleted_project_info(pid, pname, ccp_found: bool):
+    """삭제된 프로젝트의 정보를 deleted_project.json에 저장"""
+    file_path = "deleted_project.json"
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError:
+            data = {}
+    else:
+        data = {}
+    pid_str = str(pid)
+    deleted_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data[pid_str] = {
+        "pname": pname,
+        "deleted_time": deleted_time,
+        "ccp": ccp_found
+    }
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 # API 엔드포인트
 @router.post("/project/init")
@@ -190,7 +214,8 @@ async def api_project_init(payload: ProjectInit):
                 status_code=500,
                 detail=f"Adding leader permission to user failed for PUID: {PUID}",
             )
-        logger.info("Step 6: Initializing WBS data")
+        logger.info("Step 6: Initializing WBS & Testcase data")
+        # WBS 초기화
         wbs_data = [["", "", "", "", "", "", "INITWBS", "", 0, "2025-01-01", "2025-01-10", 1, 0, 0, 0]]
         initwbs_result = wbs.init_wbs(wbs_data, PUID)
         if not initwbs_result:
@@ -198,6 +223,19 @@ async def api_project_init(payload: ProjectInit):
             raise HTTPException(
                 status_code=500,
                 detail=f"Initializing WBS data failed for PUID: {PUID}",
+            )
+        # Testcase 초기화
+        try:
+            logger.info(f"Initializing test cases for project {PUID}")
+            testcase_data = [
+                ["INITTEST", "INITTEST", "2025-01-01", "2025-01-10", 0, None] 
+            ]
+            init_testcase_result = output.init_testcase(testcase_data, PUID)
+        except Exception as e:
+            logger.error(f"Testcase initialization failed for project {PUID}: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Testcase initialization failed for project {PUID}: {str(e)}",
             )
         logger.info(f"Project {PUID} created successfully")
         return {
@@ -265,12 +303,32 @@ async def api_project_load(payload: ProjectLoad):
 @router.post("/project/delete")
 async def api_project_delete(payload: ProjectDelete):
     """프로젝트 삭제"""
-    # 존재하지 않는 PID 번호로 프로젝트를 삭제하려고 시도해도 Project deleted successfully가 나오는 문제가 존재
     try:
-        result = project_DB.delete_project(payload.pid)
+        pid = payload.pid
+        all_projects = project_DB.fetch_project_info(univ_id=payload.univ_id)
+        pname = None
+        for project in all_projects:
+            if project["p_no"] == pid:
+                pname = project["p_name"]
+                break
+        if pname is None:
+            logger.warning(f"Project {pid} not found in fetch_project_info.")
+            pname = "Unknown"
+        try:
+            history = csv_DB.fetch_csv_history(pid)
+            ccp_ok = isinstance(history, list) and len(history) > 0
+        except Exception as e:
+            logger.warning(f"Failed to fetch history for project {pid}: {e}")
+            ccp_ok = False
+        result = project_DB.delete_project(pid)
         if result is True:
-            logger.info(f"Project {payload.pid} has been deleted successfully")
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Project deleted successfully"}
+            save_deleted_project_info(pid, pname, ccp_ok)
+            logger.info(f"------\nProject {pid} deleted successfully\n------")
+            return {
+                "RESULT_CODE": 200,
+                "RESULT_MSG": "Project deleted successfully",
+                "CCP_FOUND": ccp_ok
+            }
         raise HTTPException(status_code=500, detail="Project deletion failed")
     except Exception as e:
         logger.error(f"Project {payload.pid} deletion failed: {str(e)}", exc_info=True)
@@ -318,21 +376,19 @@ async def api_project_edit_user(payload: ProjectEditUser):
         logger.error(f"Error updating user in project {payload.pid}, Univ ID {payload.univ_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error during user update: {str(e)}")
 
-
 @router.post("/project/checkpm")
-async def api_project_check_pm(payload: ProjectCheckPM):
+async def api_project_check_pm_n(payload: ProjectCheckPM):
     """PM 권한 확인"""
     try:
-        has_permission = project_DB.validate_pm_permission(payload.pid, payload.univ_id)
-        if has_permission:
-            logger.info(f"PM permission granted for project {payload.pid}, Univ ID {payload.univ_id}")
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Permission granted"}
-        logger.warning(f"PM permission denied for project {payload.pid}, Univ ID {payload.univ_id}")
-        raise HTTPException(status_code=403, detail="Permission denied")
+        result = project_DB.validate_pm_permission(payload.pid, payload.univ_id)
+        if isinstance(result, Exception):
+            logger.error(f"PM permission error for project {payload.pid}, Univ ID {payload.univ_id}")
+            raise HTTPException(status_code=500, detail=f"Error during permission check: {str(e)}")
+        logger.info(f"PM permission granted for project {payload.pid}, Univ ID {payload.univ_id}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Permission granted"}
     except Exception as e:
         logger.error(f"Error checking PM permission for project {payload.pid}, Univ ID {payload.univ_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error during permission check: {str(e)}")
-
 
 @router.post("/project/checkuser")
 async def api_project_check_user(payload: ProjectCheckUser):
@@ -555,6 +611,9 @@ async def api_project_load_prof(payload: ProjectLoadUser):
         if isinstance(result, Exception):
             logger.error(f"Error in Load professor Operation for project {payload.pid}: {str(result)}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Error in Load professor Operation: {str(result)}")
+        elif result == None:
+            logger.warning(f"PID {payload.pid} isn't found in the database.")
+            raise HTTPException(status_code=404, detail=f"PID {payload.pid} isn't found in the database.")
         logger.info(f"Professor loaded successfully for project {payload.pid}")
         return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
     except Exception as e:

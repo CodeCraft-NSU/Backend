@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2025/01/10                                                      
-   업데이트 : 2025/03/08
+   업데이트 : 2025/03/23
                                                                              
    설명     : 프로젝트 Import/Export API 엔드포인트 정의
 """
@@ -16,13 +16,15 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from urllib.parse import quote
 from logger import logger
-import os, sys, logging, shutil, tarfile, io, struct, httpx, requests
+from collections import defaultdict
+import os, sys, logging, shutil, tarfile, io, struct, httpx, requests, json
 import traceback
 
 router = APIRouter()
 
 sys.path.append(os.path.abspath('/data/Database Project'))  # Database Project와 연동하기 위해 사용
 import csv_DB
+import project_DB
 import push
 
 class ccp_payload(BaseModel):
@@ -30,6 +32,7 @@ class ccp_payload(BaseModel):
     univ_id: int = None
     msg: str = None
     ver: int = None
+    is_removed: int = None # 삭제된 프로젝트를 복원하는 경우에만 사용; 1로 export 기능을 스킵
 
 def handle_db_result(result):
     """데이터베이스 결과 처리 함수"""
@@ -44,7 +47,8 @@ def create_project_info():
 async def pull_storage_server(pid: int, output_path: str):
     """Storage 서버에서 특정 프로젝트의 데이터를 다운로드 및 추출하는 함수"""
     b_server_url = f"http://192.168.50.84:10080/api/ccp/push"
-    async with httpx.AsyncClient() as client:
+    timeout = httpx.Timeout(60.0, connect=5.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(b_server_url, params={"pid": pid})
             if response.status_code == 200:
@@ -249,46 +253,52 @@ async def api_project_import(payload: ccp_payload):
         if selected_version is None:
             raise Exception(f"Version {payload.ver} not found in project history")
         logging.info(f"Selected version {payload.ver} found in history")
-        # Step 2: Backup current project
-        logging.info(f"Step 2: Backing up current project {payload.pid}")
-        os.makedirs(f'/data/ccp/{payload.pid}/DATABASE', exist_ok=True)
-        os.makedirs(f'/data/ccp/{payload.pid}/OUTPUT', exist_ok=True)
-        result = csv_DB.export_csv(payload.pid)
-        if not handle_db_result(result):
-            raise Exception("Failed to export DB during backup")
-        result = await pull_storage_server(payload.pid, f'/data/ccp/{payload.pid}/OUTPUT')
-        if result['RESULT_CODE'] != 200:
-            raise Exception(result['RESULT_MSG'])
-        if not encrypt_ccp_file(payload.pid):
-            raise Exception(f"Failed to encrypt project folder for backup")
-        # Step 3: Save backup history
-        logging.info("Saving backup record to DB history")
-        payload.msg = f"Revert {highest_ver} to {payload.ver}"
-        backup_ver = csv_DB.insert_csv_history(payload.pid, payload.univ_id, payload.msg)
-        if backup_ver is None:
-            raise Exception("Failed to insert backup history record")
-        logging.info(f"Backup history recorded as version {backup_ver}")
-        # Step 4: Upload backup to Storage Server
-        history = csv_DB.fetch_csv_history(payload.pid)
-        version = str(max(record['ver'] for record in history))
-        ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
-        ccp_file_name = f"{payload.pid}_{version}.ccp"
-        storage_url = "http://192.168.50.84:10080/api/ccp/pull"
-        logging.info(f"Uploading backup CCP file to Storage Server: {ccp_file_name}")
-        with open(ccp_file_path, "rb") as file:
-            files = {"file": (ccp_file_name, file, "application/octet-stream")}
-            form_data = {"pid": str(payload.pid), "name": ccp_file_name}
-            response = requests.post(storage_url, files=files, data=form_data)
-        if response.status_code != 200:
-            raise Exception("Failed to upload backup CCP file")
-        # Step 5: Remove temporary backup files
-        shutil.rmtree(f'/data/ccp/{payload.pid}', ignore_errors=True)
-        os.remove(f'/data/ccp/{payload.pid}.ccp')
-        logging.info("Backup completed and temporary files removed")
+
+        # Export(백업) 기능: is_removed가 1이면 이 기능을 비활성화
+        if payload.is_removed != 1:
+            # Step 2: Backup current project
+            logging.info(f"Step 2: Backing up current project {payload.pid}")
+            os.makedirs(f'/data/ccp/{payload.pid}/DATABASE', exist_ok=True)
+            os.makedirs(f'/data/ccp/{payload.pid}/OUTPUT', exist_ok=True)
+            result = csv_DB.export_csv(payload.pid)
+            if not handle_db_result(result):
+                raise Exception("Failed to export DB during backup")
+            result = await pull_storage_server(payload.pid, f'/data/ccp/{payload.pid}/OUTPUT')
+            if result['RESULT_CODE'] != 200:
+                raise Exception(result['RESULT_MSG'])
+            if not encrypt_ccp_file(payload.pid):
+                raise Exception(f"Failed to encrypt project folder for backup")
+            # Step 3: Save backup history
+            logging.info("Saving backup record to DB history")
+            payload.msg = f"Revert {highest_ver} to {payload.ver}"
+            backup_ver = csv_DB.insert_csv_history(payload.pid, payload.univ_id, payload.msg)
+            if backup_ver is None:
+                raise Exception("Failed to insert backup history record")
+            logging.info(f"Backup history recorded as version {backup_ver}")
+            # Step 4: Upload backup to Storage Server
+            history = csv_DB.fetch_csv_history(payload.pid)
+            version = str(max(record['ver'] for record in history))
+            ccp_file_path = f"/data/ccp/{payload.pid}.ccp"
+            ccp_file_name = f"{payload.pid}_{version}.ccp"
+            storage_url = "http://192.168.50.84:10080/api/ccp/pull"
+            logging.info(f"Uploading backup CCP file to Storage Server: {ccp_file_name}")
+            with open(ccp_file_path, "rb") as file:
+                files = {"file": (ccp_file_name, file, "application/octet-stream")}
+                form_data = {"pid": str(payload.pid), "name": ccp_file_name}
+                response = requests.post(storage_url, files=files, data=form_data)
+            if response.status_code != 200:
+                raise Exception("Failed to upload backup CCP file")
+            # Step 5: Remove temporary backup files
+            shutil.rmtree(f'/data/ccp/{payload.pid}', ignore_errors=True)
+            os.remove(f'/data/ccp/{payload.pid}.ccp')
+            logging.info("Backup completed and temporary files removed")
+        else:
+            logging.info("Export function is disabled (is_removed=1): skipping steps 2 to 5.")
         # Step 6: Download selected CCP version
         logging.info(f"Step 6: Downloading CCP file for version {payload.ver} from Storage Server")
         selected_ccp_url = "http://192.168.50.84:10080/api/ccp/push_ccp"
-        async with httpx.AsyncClient() as client:
+        timeout = httpx.Timeout(60.0, connect=5.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(selected_ccp_url, params={"pid": payload.pid, "ver": payload.ver})
             if response.status_code != 200:
                 raise Exception(f"Storage server returned status {response.status_code}")
@@ -315,7 +325,7 @@ async def api_project_import(payload: ccp_payload):
                     with open(file_path, "rb") as f:
                         files_payload = {"file": (filename, f, "application/octet-stream")}
                         data_payload = {"pid": str(payload.pid)}
-                        response = requests.post(db_push_url, files=files_payload, data=data_payload)
+                        response = requests.post(db_push_url, files=files_payload, data=data_payload, timeout=15)
                         if response.status_code != 200:
                             raise Exception(f"Failed to push file {filename}: {response.text}")
                         else:
@@ -349,18 +359,36 @@ async def api_project_import(payload: ccp_payload):
                         tar.add(full_path, arcname=rel_path)
             pull_output_url = "http://192.168.50.84:10080/api/ccp/pull_output"
             with open(archive_path, "rb") as file:
-                response = requests.post(pull_output_url, files={"file": (f"{payload.pid}_output.tar.gz", file, "application/gzip")})
+                multipart_form = {
+                    "file": (f"{payload.pid}_output.tar.gz", file, "application/gzip"),
+                    "pid": (None, str(payload.pid)),
+                    "name": (None, f"{payload.pid}_output.tar.gz")
+                }
+                response = requests.post(pull_output_url, files=multipart_form)
             if response.status_code != 200:
                 raise Exception("Failed to upload OUTPUT archive to Storage Server")
             os.remove(archive_path)
         else:
             logging.info("No OUTPUT files found, skipping restore process.")
+        deleted_file = "deleted_project.json"
+        pid_str = str(payload.pid)
+        if os.path.exists(deleted_file):
+            try:
+                with open(deleted_file, "r", encoding="utf-8") as f:
+                    deleted_data = json.load(f)
+                if pid_str in deleted_data:
+                    del deleted_data[pid_str]
+                    with open(deleted_file, "w", encoding="utf-8") as f:
+                        json.dump(deleted_data, f, ensure_ascii=False, indent=2)
+                    logging.info(f"Deleted project entry for PID {payload.pid} removed from deleted_project.json")
+            except Exception as e:
+                logging.warning(f"Failed to clean up deleted_project.json for PID {payload.pid}: {e}")
         logging.info(f"------ Project import process completed successfully for PID {payload.pid} ------")
         return {"RESULT_CODE": 200, "RESULT_MSG": f"Project {payload.pid} imported successfully."}
     except Exception as e:
         logging.error(f"Error during project import process for PID {payload.pid}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error during project import: {str(e)}")
-    # 복원 실패 시 revert 기능 추가해야 함
+
 
 def initialize_folder(pid: int):
     """백업/추출을 위한 폴더를 초기화한다."""
@@ -432,7 +460,7 @@ def upload_ccp_file(payload: ccp_payload, ver: int):
             files = {"file": (ccp_file_name, file, "application/octet-stream")}
             form_data = {"pid": str(payload.pid), "name": ccp_file_name}
             logging.info(f"Sending CCP file to Storage Server: {storage_url}")
-            response = requests.post(storage_url, files=files, data=form_data)
+            response = requests.post(storage_url, files=files, data=form_data, timeout=30)
         if response.status_code != 200:
             logging.error(f"Failed to upload CCP file for project {payload.pid}: {response.text}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to upload CCP file to Storage Server")
@@ -593,3 +621,52 @@ async def api_load_history(payload: ccp_payload):
         logging.error(f"Error occurred while loading history for project {payload.pid}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error during history load: {str(e)}")
     return {"RESULT_CODE": 200, "RESULT_MSG": "History loaded successfully", "PAYLOAD": result}
+
+@router.post("/ccp/load_history_id")
+async def api_load_history_by_univid(payload: ccp_payload):
+    """프로젝트 복원용 히스토리 로드"""
+    try:
+        result = csv_DB.fetch_csv_history_by_univid(payload.univ_id)
+        if not result or not isinstance(result, list):
+            raise Exception(f"Failed to load history for user {payload.univ_id}")
+        deleted_file = "deleted_project.json"
+        deleted_data = {}
+        if os.path.exists(deleted_file):
+            try:
+                with open(deleted_file, "r", encoding="utf-8") as f:
+                    deleted_data = json.load(f)
+            except json.JSONDecodeError:
+                logging.warning("deleted_project.json is malformed or empty.")
+        try:
+            all_projects = project_DB.fetch_project_info(payload.univ_id)
+        except Exception as e:
+            all_projects = []
+            logging.warning(f"Failed to load active project info for univ_id {payload.univ_id}: {e}")
+        pname_lookup = {p["p_no"]: p["p_name"] for p in all_projects if "p_no" in p and "p_name" in p}
+        grouped = defaultdict(lambda: {"pname": None, "history": []})
+        for entry in result:
+            p_no = str(entry["p_no"])
+            history_item = {
+                "ver": entry["ver"],
+                "date": entry["date"],
+                "s_no": entry["s_no"],
+                "msg": entry["msg"]
+            }
+            if p_no in deleted_data:
+                grouped[p_no]["pname"] = deleted_data[p_no].get("pname")
+            elif entry["p_no"] in pname_lookup:
+                grouped[p_no]["pname"] = pname_lookup[entry["p_no"]]
+            else:
+                grouped[p_no]["pname"] = None
+            grouped[p_no]["history"].append(history_item)
+        for p_data in grouped.values():
+            p_data["history"].sort(key=lambda x: x["ver"], reverse=True)
+        logging.info(f"History successfully loaded for user {payload.univ_id}, total projects: {len(grouped)}")
+    except Exception as e:
+        logging.error(f"Error occurred while loading history for user {payload.univ_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error during history load: {str(e)}")
+    return {
+        "RESULT_CODE": 200,
+        "RESULT_MSG": "History loaded successfully",
+        "PAYLOAD": grouped
+    }
