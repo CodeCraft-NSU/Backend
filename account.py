@@ -92,14 +92,11 @@ async def api_acc_signup_post(payload: SignUp_Payload):
     try:
         token = generate_token()
         result = account_DB.insert_user(payload, token)
-        if result is True:
-            logger.info(f"User {payload.univ_id} signed up successfully")
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Signup successful", "PAYLOADS": {"Token": token}}
         if isinstance(result, tuple) and result[0] == 1062:
             logger.warning(f"Duplicate signup attempt: {payload.univ_id} is already registered")
             return {"RESULT_CODE": 409, "RESULT_MSG": "Duplicate entry: This univ_id is already registered"}
-        logger.error(f"Unexpected signup error: {str(result)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error during signup: {str(result)}")
+        logger.info(f"User {payload.univ_id} signed up successfully")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Signup successful", "Result": result}
     except Exception as e:
         logger.error(f"Unhandled exception during signup: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unhandled exception during signup: {str(e)}")
@@ -126,8 +123,7 @@ async def api_acc_signin_post(payload: Signin_Payload):
             "RESULT_CODE": 200,
             "RESULT_MSG": "Login successful",
             "PAYLOADS": {
-                "Token": token,
-                "Univ_ID": s_no
+                "Result": save_result
             }
         }
     except HTTPException as http_err:

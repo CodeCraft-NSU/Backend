@@ -79,8 +79,7 @@ async def api_prof_signin_post(payload: Signin_Payload):
             "RESULT_CODE": 200,
             "RESULT_MSG": "Login successful",
             "PAYLOADS": {
-                "Token": token,
-                "Univ_ID": f_no
+                "Result": save_result
             }
         }
     except HTTPException as http_err:
