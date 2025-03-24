@@ -471,7 +471,6 @@ async def edit_reqspec(payload: ReqSpecPayload):
         raise HTTPException(status_code=500, detail=f"Error editing requirement specification: {e}")
 
 
-
 @router.post("/output/reqspec_fetch_all")
 async def fetch_all_reqspec(payload: DocumentFetchPayload):
     """
@@ -503,7 +502,40 @@ async def delete_reqspec(payload: DocumentDeletePayload):
         raise HTTPException(status_code=500, detail=f"Error deleting requirement specification: {e}")
 
 
-@router.post("/output/testcase_add")
+def init_testcase(data, pid):
+    try:
+        result = output_DB.add_multiple_testcase(data, pid)
+        if isinstance(result, Exception):
+            logger.error(f"Failed to add initial test case data for project {pid}: {str(result)}", exc_info=True)
+            raise Exception(f"Failed to add init Testcase data. Error: {str(result)}")
+        logger.info(f"Project {pid} has been successfully initialized with test cases")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Testcase init successful"}
+    except Exception as e:
+        logger.error(f"Error occurred while initializing test cases for project {pid}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error during Testcase batch update: {str(e)}")
+
+
+@router.post("/output/testcase_update")
+async def update_tastcase(payload: MultipleTestCasesPayload):
+    """WBS 스타일의 TC 업데이트 API"""
+    try:
+        logger.info(f"Received request to update test cases for project {payload.pid}")
+        # Step 1: 기존 TC 데이터 삭제
+        delete_result = output_DB.delete_all_testcase(payload.pid)
+        logger.info(f"Existing test cases deleted for project {payload.pid}")
+        # Step 2: 새로운 TC 데이터 추가
+        add_result = output.add_multiple_testcase(payload.testcases, payload.pid)
+        if add_result != True:
+            logger.error(f"Failed to add new test cases for project {payload.pid}: {add_result}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to add new test cases. Error: {add_result}")
+        logger.info(f"Successfully updated test cases for project {payload.pid}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Test cases updated successfully"}
+    except Exception as e:
+        logger.error(f"Error occurred while updating test cases for project {payload.pid}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error during test case update: {str(e)}")
+
+
+@router.post("/output/testcase_add") # TC 컨셉 변경으로 인한 미사용 (25.03.24)
 async def add_multiple_testcase(payload: MultipleTestCasesPayload):
     """ 테스트 케이스 추가 API """
     try:
