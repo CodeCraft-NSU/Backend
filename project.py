@@ -228,7 +228,7 @@ async def api_project_init(payload: ProjectInit):
         try:
             logger.info(f"Initializing test cases for project {PUID}")
             testcase_data = [
-                ["INITTEST", "2025-01-01", "2025-01-10", 0, None]  # group1, name, start, end, pass, group1no(None)
+                ["INITTEST", "INITTEST", "2025-01-01", "2025-01-10", 0, None] 
             ]
             init_testcase_result = output.init_testcase(testcase_data, PUID)
         except Exception as e:
