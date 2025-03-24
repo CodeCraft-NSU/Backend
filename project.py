@@ -25,6 +25,7 @@ import csv_DB
 import account_DB
 import permission
 import wbs
+import output
 
 router = APIRouter()
 
@@ -213,7 +214,8 @@ async def api_project_init(payload: ProjectInit):
                 status_code=500,
                 detail=f"Adding leader permission to user failed for PUID: {PUID}",
             )
-        logger.info("Step 6: Initializing WBS data")
+        logger.info("Step 6: Initializing WBS & Testcase data")
+        # WBS 초기화
         wbs_data = [["", "", "", "", "", "", "INITWBS", "", 0, "2025-01-01", "2025-01-10", 1, 0, 0, 0]]
         initwbs_result = wbs.init_wbs(wbs_data, PUID)
         if not initwbs_result:
@@ -221,6 +223,19 @@ async def api_project_init(payload: ProjectInit):
             raise HTTPException(
                 status_code=500,
                 detail=f"Initializing WBS data failed for PUID: {PUID}",
+            )
+        # Testcase 초기화
+        try:
+            logger.info(f"Initializing test cases for project {PUID}")
+            testcase_data = [
+                ["INITTEST", "2025-01-01", "2025-01-10", 0, None]  # group1, name, start, end, pass, group1no(None)
+            ]
+            init_testcase_result = output.init_testcase(testcase_data, PUID)
+        except Exception as e:
+            logger.error(f"Testcase initialization failed for project {PUID}: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Testcase initialization failed for project {PUID}: {str(e)}",
             )
         logger.info(f"Project {PUID} created successfully")
         return {
