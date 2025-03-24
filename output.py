@@ -520,11 +520,20 @@ async def update_tastcase(payload: MultipleTestCasesPayload):
     """WBS 스타일의 TC 업데이트 API"""
     try:
         logger.info(f"Received request to update test cases for project {payload.pid}")
-        # Step 1: 기존 TC 데이터 삭제
         delete_result = output_DB.delete_all_testcase(payload.pid)
         logger.info(f"Existing test cases deleted for project {payload.pid}")
-        # Step 2: 새로운 TC 데이터 추가
-        add_result = output.add_multiple_testcase(payload.testcases, payload.pid)
+        testcase_data = [
+            [
+                tc.doc_t_group1,
+                tc.doc_t_name,
+                tc.doc_t_start,
+                tc.doc_t_end,
+                tc.doc_t_pass,
+                tc.doc_t_group1no
+            ]
+            for tc in payload.testcases
+        ]
+        add_result = output_DB.add_multiple_testcase(testcase_data, payload.pid)
         if add_result != True:
             logger.error(f"Failed to add new test cases for project {payload.pid}: {add_result}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Failed to add new test cases. Error: {add_result}")
