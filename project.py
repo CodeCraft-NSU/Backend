@@ -361,21 +361,19 @@ async def api_project_edit_user(payload: ProjectEditUser):
         logger.error(f"Error updating user in project {payload.pid}, Univ ID {payload.univ_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error during user update: {str(e)}")
 
-
 @router.post("/project/checkpm")
-async def api_project_check_pm(payload: ProjectCheckPM):
+async def api_project_check_pm_n(payload: ProjectCheckPM):
     """PM 권한 확인"""
     try:
-        has_permission = project_DB.validate_pm_permission(payload.pid, payload.univ_id)
-        if has_permission:
-            logger.info(f"PM permission granted for project {payload.pid}, Univ ID {payload.univ_id}")
-            return {"RESULT_CODE": 200, "RESULT_MSG": "Permission granted"}
-        logger.warning(f"PM permission denied for project {payload.pid}, Univ ID {payload.univ_id}")
-        raise HTTPException(status_code=403, detail="Permission denied")
+        result = project_DB.validate_pm_permission(payload.pid, payload.univ_id)
+        if isinstance(result, Exception):
+            logger.error(f"PM permission error for project {payload.pid}, Univ ID {payload.univ_id}")
+            raise HTTPException(status_code=500, detail=f"Error during permission check: {str(e)}")
+        logger.info(f"PM permission granted for project {payload.pid}, Univ ID {payload.univ_id}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Permission granted"}
     except Exception as e:
         logger.error(f"Error checking PM permission for project {payload.pid}, Univ ID {payload.univ_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error during permission check: {str(e)}")
-
 
 @router.post("/project/checkuser")
 async def api_project_check_user(payload: ProjectCheckUser):
