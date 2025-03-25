@@ -82,7 +82,7 @@ async def check_session(payload: Checksession_Payload):
         logger.warning(f"Invalid session token for user {payload.user_id}")
         raise HTTPException(status_code=401, detail="Invalid session token")
     except Exception as e:
-        logger.error(f"Unexpected error validating session for user {payload.user_id}: {str(e)}", exc_info=True)
+        #logger.error(f"Unexpected error validating session for user {payload.user_id}: {str(e)}", exc_info=True) # 로그 가시성 하락으로 인한 임시 비활성화 (25.03.25)
         raise HTTPException(status_code=500, detail=f"Unexpected error validating session: {str(e)}")
 
 
