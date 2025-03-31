@@ -433,7 +433,7 @@ async def add_reqspec(payload: ReqSpecPayload):
             non_functional_priority=payload.non_functional_priority,
             system_item=payload.system_item,
             system_description=payload.system_description,
-            doc_r_date=payload.add_date,
+            add_date=payload.add_date,
             pid=payload.pid
         )
         logger.debug(f"ReqSpec document added: pid={payload.pid}, doc_r_no={result}")

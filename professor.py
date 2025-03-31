@@ -55,7 +55,7 @@ async def api_prof_check_session(payload: Checksession_Payload):
         logger.warning(f"Invalid session token for professor {payload.user_id}")
         raise HTTPException(status_code=401, detail="Invalid session token")
     except Exception as e:
-        logger.error(f"Unexpected error validating session for professor {payload.user_id}: {str(e)}", exc_info=True)
+        #logger.error(f"Unexpected error validating session for professor {payload.user_id}: {str(e)}", exc_info=True) # 로그 가시성 하락으로 인한 임시 비활성화 (25.03.25)
         raise HTTPException(status_code=500, detail=f"Unexpected error validating session: {str(e)}")
 
 @router.post("/prof/signin")
@@ -79,8 +79,7 @@ async def api_prof_signin_post(payload: Signin_Payload):
             "RESULT_CODE": 200,
             "RESULT_MSG": "Login successful",
             "PAYLOADS": {
-                "Token": token,
-                "Univ_ID": f_no
+                "Result": save_result
             }
         }
     except HTTPException as http_err:
