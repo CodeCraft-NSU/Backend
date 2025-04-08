@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16                                                      
-   업데이트 : 2025/03/08
+   업데이트 : 2025/04/08
                                                                              
    설명     : 계정 생성, 로그인, 세션 관리를 위한 API 엔드포인트 정의
 """
@@ -61,6 +61,14 @@ class FineName_Payload(BaseModel):
 class LoadProfPayload(BaseModel):
     subj_no: int
 
+class LoadAccountPayload(BaseModel):
+    univ_id: int
+
+class EditAccountPayload(BaseModel):
+    univ_id: int
+    pw: str
+    dept: int
+    email: str
 
 def generate_token():
     """랜덤한 15자리 토큰 생성"""
@@ -244,3 +252,36 @@ async def api_acc_load_professor_by_subject(payload: LoadProfPayload):
     except Exception as e:
         logger.error(f"Unexpected error in load professor operation for subject {payload.subj_no}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error in load professor operation: {str(e)}")
+
+@router.post("/acc/load_acc")
+async def api_acc_load_account_info(payload: LoadAccountPayload):
+    """학번으로 해당 계정의 모든 정보를 불러오는 기능"""
+    try:
+        result = account_DB.fetch_student_info(payload.univ_id)
+        if isinstance(result, Exception):
+            logger.error(f"Error in load account operation for univ_id {payload.univ_id}: {str(result)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error in load account operation: {str(result)}")
+        logger.info(f"Account info retrieved successfully for univ_id: {payload.univ_id}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.error(f"Unexpected error in load account operation for univ_id {payload.univ_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error in load account operation: {str(e)}")
+
+@router.post("/acc/edit_acc")
+async def api_acc_edit_account_info(payload: EditAccountPayload):
+    """학번으로 해당 계정의 특정 정보를 수정하는 기능"""
+    try:
+        result = account_DB.edit_student_info(
+            pw = payload.pw,
+            email = payload.email,
+            dno = payload.dept,
+            univ_id = payload.univ_id
+            )
+        if isinstance(result, Exception):
+            logger.error(f"Error in edit account operation for univ_id {payload.univ_id}: {str(result)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error in edit account operation: {str(result)}")
+        logger.info(f"Account edited successfully for univ_id: {payload.univ_id}")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Edit Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.error(f"Unexpected error in edit account operation for univ_id {payload.univ_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error in edit account operation: {str(e)}")
