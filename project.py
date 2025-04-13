@@ -5,7 +5,7 @@
    생성자   : 김창환                                
                                                                               
    생성일   : 2024/10/16
-   업데이트 : 2025/03/23
+   업데이트 : 2025/04/13
                                                                              
    설명     : 프로젝트의 생성, 수정, 조회를 위한 API 엔드포인트 정의
 """
@@ -647,3 +647,17 @@ async def api_project_find_professor(payload: FindProf_Payload):
     except Exception as e:
         logger.error(f"Unexpected error in find professor operation for university {payload.univ_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error in find professor operation: {str(e)}")
+
+@router.post("/project/load_exp")
+async def api_project_load_expired_project():
+    """만료일이 지난 프로젝트 불러오는 API"""
+    try:
+        result = project_DB.fetch_expired_projects()
+        if isinstance(result, Exception):
+            logger.error(f"Error in load exp project operation: {str(result)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error in load exp project operation: {str(result)}")
+        logger.info(f"Load Exp project operation successfully.")
+        return {"RESULT_CODE": 200, "RESULT_MSG": "Load Successful.", "PAYLOAD": {"Result": result}}
+    except Exception as e:
+        logger.error(f"Unexpected error in load exp project operation: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error in load exp project operation: {str(e)}")
