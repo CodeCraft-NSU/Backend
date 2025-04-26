@@ -1088,7 +1088,6 @@ async def fetch_attachments(
         logger.error(f"Error fetching attachments for p_no={p_no}, doc_no={doc_no}, doc_type={doc_type}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error fetching attachments: {e}")
 
-
 @router.post("/output/attach_download")
 async def download_attachment(
     doc_a_no: int = Form(...),
@@ -1097,16 +1096,15 @@ async def download_attachment(
     p_no: int = Form(...)
 ):
     logger.info(f"Downloading attachment: doc_a_no={doc_a_no}, doc_type={doc_type}, doc_no={doc_no}, p_no={p_no}")
+    temp_file_path = None
+
     try:
+        # 1. DB에서 첨부파일 리스트 조회
         attachments = output_DB.fetch_all_attachments(doc_type, doc_no, p_no)
         logger.info(f"Fetched {len(attachments)} attachments from DB for p_no={p_no}, doc_no={doc_no}, doc_type={doc_type}")
         
-        attachment = None
-        for att in attachments:
-            if int(att.get("doc_a_no", -1)) == doc_a_no:
-                attachment = att
-                break
-        
+        # 2. 요청한 doc_a_no에 해당하는 항목 찾기
+        attachment = next((att for att in attachments if int(att.get("doc_a_no", -1)) == doc_a_no), None)
         if not attachment:
             logger.error(f"Attachment with doc_a_no={doc_a_no} not found")
             raise HTTPException(status_code=404, detail="Attachment not found")
@@ -1115,32 +1113,42 @@ async def download_attachment(
         file_name = attachment['doc_a_name']
         logger.info(f"Found attachment: {file_name} at path {file_path}")
         
+        # 3. Storage 서버에서 파일 다운로드
         storage_download_url = f"{STORAGE_SERVER_URL}/otherdoc_download"
         logger.info(f"Requesting file from storage server at {storage_download_url} with file_path={file_path}")
-        response = requests.post(storage_download_url, data={"file_path": file_path}, stream=True)
-        
+        response = requests.post(storage_download_url, data={"file_path": file_path}, stream=True, timeout=60)
         if response.status_code != 200:
             logger.error(f"Storage server error: {response.status_code} - {response.text}")
             raise HTTPException(status_code=response.status_code, detail=f"Storage server error: {response.text}")
         
-        response.raw.decode_content = True
+        # 4. 임시 디렉터리에 저장
+        os.makedirs(TEMP_DOWNLOAD_DIR, exist_ok=True)
         temp_file_path = os.path.join(TEMP_DOWNLOAD_DIR, file_name)
         logger.info(f"Saving file to temporary path: {temp_file_path}")
         with open(temp_file_path, "wb") as f:
             shutil.copyfileobj(response.raw, f)
         logger.info(f"File saved to {temp_file_path}")
         
-        task = BackgroundTask(os.remove, temp_file_path)
-        logger.info(f"Returning file response for {file_name}")
-        return FileResponse(
-            path=temp_file_path,
-            filename=file_name,
-            media_type='application/octet-stream',
-            background=task
-        )
+        # 5. Next.js 서버로 전송
+        logger.info(f"Pushing file to Next.js: {file_name}")
+        result = push.push_to_nextjs(temp_file_path, file_name)
+        return result
+
+    except HTTPException:
+        # 이미 HTTPException으로 적절한 응답을 던진 상태
+        raise
     except Exception as e:
-        logger.error(f"Error downloading attachment for doc_a_no={doc_a_no}: {e}", exc_info=True)
+        logger.error(f"Error in download_attachment: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error downloading attachment: {e}")
+
+    finally:
+        # 6. 임시 파일 즉시 삭제
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+                logger.info(f"Temporary file deleted: {temp_file_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete temporary file {temp_file_path}: {e}", exc_info=True)
 
 @router.post("/output/attach_edit_name")
 async def edit_attachment_name(
