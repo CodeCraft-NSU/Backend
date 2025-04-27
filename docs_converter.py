@@ -34,9 +34,12 @@ class ConverterPayload(BaseModel):
 
 def replace_placeholder_in_cell(cell, placeholder, replacement):
     for paragraph in cell.paragraphs:
-        for run in paragraph.runs:
-            if placeholder in run.text:
-                run.text = run.text.replace(placeholder, replacement)
+        if placeholder in paragraph.text:
+            new_text = paragraph.text.replace(placeholder, replacement)
+            for run in paragraph.runs:
+                run.text = ""
+            paragraph.runs[0].text = new_text
+        paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
 
 def process_meeting_minutes(doc_s_no):
     """
