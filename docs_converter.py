@@ -34,26 +34,12 @@ class ConverterPayload(BaseModel):
 
 def replace_placeholder_in_cell(cell, placeholder, replacement):
     for paragraph in cell.paragraphs:
-        full_text = "".join(run.text for run in paragraph.runs)
-        if placeholder in full_text:
-            updated_text = full_text.replace(placeholder, replacement)
-            
-            # 기존 문단의 정렬 상태 저장
-            alignment = paragraph.alignment
-            spacing_before = paragraph.paragraph_format.space_before
-            spacing_after = paragraph.paragraph_format.space_after
-            
-            # 기존 텍스트 제거 및 새 텍스트 삽입
+        if placeholder in paragraph.text:
+            new_text = paragraph.text.replace(placeholder, replacement)
             for run in paragraph.runs:
-                run.clear()
-            paragraph.clear()
-            paragraph.add_run(updated_text)
-            
-            # 문단 정렬 및 여백 복원
-            paragraph.alignment = alignment
-            paragraph.paragraph_format.space_before = spacing_before
-            paragraph.paragraph_format.space_after = spacing_after
-
+                run.text = ""
+            paragraph.runs[0].text = new_text
+        paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT
 
 def process_meeting_minutes(doc_s_no):
     """
